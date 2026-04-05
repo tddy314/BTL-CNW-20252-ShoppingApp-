@@ -1,0 +1,29 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "concurrently \"cd services/auth-service && npm run dev\" \"cd services/product-service && npm run dev\" \"cd gateway && npm run dev\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "workspaces": [
+    "services/auth-service",
+    "services/cart-service",
+    "services/inventory-service",
+    "services/notification-service",
+    "services/order-service",
+    "services/payment-service",
+    "services/product-service",
+    "services/review-service",
+    "services/shipping-service",
+    "gateway"
+  ]
+}
