@@ -5,31 +5,33 @@ import { useRouter } from 'next/navigation';
 import { UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ApiGateway } from '../utils/api';
 
 interface FormData {
-  fullName: string;
-  address: string;
-  phoneNumber: string;
-  identityNumber: string;
+  //fullName: string;
+  //address: string;
+  //phoneNumber: string;
+  //identityNumber: string;
   email: string;
-  username: string;
+  //username: string;
   password: string;
   confirmPassword: string;
 }
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState<FormData>({
-    fullName: '',
-    address: '',
-    phoneNumber: '',
-    identityNumber: '',
+    //fullName: '',
+    //address: '',
+    //phoneNumber: '',
+    //identityNumber: '',
     email: '',
-    username: '',
+    //username: '',
     password: '',
     confirmPassword: '',
   });
   const [errors, setErrors] = useState<Partial<FormData>>({});
   const router = useRouter();
+  const api = new ApiGateway();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -49,21 +51,21 @@ export default function RegisterPage() {
   const validateForm = (): boolean => {
     const newErrors: Partial<FormData> = {};
 
-    if (!formData.fullName.trim()) newErrors.fullName = 'Full name is required';
-    if (!formData.address.trim()) newErrors.address = 'Address is required';
-    if (!formData.phoneNumber.trim()) newErrors.phoneNumber = 'Phone number is required';
-    if (!/^\d{10,}$/.test(formData.phoneNumber.replace(/\D/g, ''))) {
-      newErrors.phoneNumber = 'Phone number must be at least 10 digits';
-    }
-    if (!formData.identityNumber.trim()) newErrors.identityNumber = 'Identity number is required';
+    //if (!formData.fullName.trim()) newErrors.fullName = 'Full name is required';
+    //if (!formData.address.trim()) newErrors.address = 'Address is required';
+    //if (!formData.phoneNumber.trim()) newErrors.phoneNumber = 'Phone number is required';
+    // if (!/^\d{10,}$/.test(formData.phoneNumber.replace(/\D/g, ''))) {
+    //   newErrors.phoneNumber = 'Phone number must be at least 10 digits';
+    // }
+    //if (!formData.identityNumber.trim()) newErrors.identityNumber = 'Identity number is required';
     if (!formData.email.trim()) newErrors.email = 'Email is required';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email';
     }
-    if (!formData.username.trim()) newErrors.username = 'Username is required';
-    if (formData.username.length < 3) {
-      newErrors.username = 'Username must be at least 3 characters';
-    }
+    // if (!formData.username.trim()) newErrors.username = 'Username is required';
+    // if (formData.username.length < 3) {
+    //   newErrors.username = 'Username must be at least 3 characters';
+    // }
     if (!formData.password.trim()) newErrors.password = 'Password is required';
     if (formData.password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters';
@@ -76,7 +78,7 @@ export default function RegisterPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async(e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -84,11 +86,20 @@ export default function RegisterPage() {
     }
 
     // Store email temporarily for OTP page (in real app, this would be sent to backend)
-    sessionStorage.setItem('registrationEmail', formData.email);
-    sessionStorage.setItem('registrationUsername', formData.username);
+    //sessionStorage.setItem('registrationEmail', formData.email);
+    //sessionStorage.setItem('registrationUsername', formData.username);
+
+    try {
+      await api.signUp(formData.email, formData.password);
+
+    }
+    catch(error : any) {
+      console.log(error.message);
+      setErrors(error);
+    }
 
     // Redirect to OTP verification page
-    router.push('/verify-otp');
+    router.push('/');
   };
 
   return (
@@ -120,7 +131,7 @@ export default function RegisterPage() {
         <form onSubmit={handleRegister} className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Full Name */}
-            <div>
+            {/* <div>
               <label htmlFor="fullName" className="block text-sm font-medium text-foreground mb-2">
                 Full Name
               </label>
@@ -136,10 +147,10 @@ export default function RegisterPage() {
               {errors.fullName && (
                 <p className="mt-1 text-xs text-red-600">{errors.fullName}</p>
               )}
-            </div>
+            </div> */}
 
             {/* Phone Number */}
-            <div>
+            {/* <div>
               <label htmlFor="phoneNumber" className="block text-sm font-medium text-foreground mb-2">
                 Phone Number
               </label>
@@ -155,10 +166,10 @@ export default function RegisterPage() {
               {errors.phoneNumber && (
                 <p className="mt-1 text-xs text-red-600">{errors.phoneNumber}</p>
               )}
-            </div>
+            </div> */}
 
             {/* Address */}
-            <div>
+            {/* <div>
               <label htmlFor="address" className="block text-sm font-medium text-foreground mb-2">
                 Address
               </label>
@@ -174,10 +185,10 @@ export default function RegisterPage() {
               {errors.address && (
                 <p className="mt-1 text-xs text-red-600">{errors.address}</p>
               )}
-            </div>
+            </div> */}
 
             {/* Identity Number */}
-            <div>
+            {/* <div>
               <label htmlFor="identityNumber" className="block text-sm font-medium text-foreground mb-2">
                 Identity Number (ID/Passport)
               </label>
@@ -193,7 +204,7 @@ export default function RegisterPage() {
               {errors.identityNumber && (
                 <p className="mt-1 text-xs text-red-600">{errors.identityNumber}</p>
               )}
-            </div>
+            </div> */}
           </div>
 
           {/* Email */}
@@ -216,7 +227,7 @@ export default function RegisterPage() {
           </div>
 
           {/* Username */}
-          <div>
+          {/* <div>
             <label htmlFor="username" className="block text-sm font-medium text-foreground mb-2">
               Username
             </label>
@@ -232,7 +243,7 @@ export default function RegisterPage() {
             {errors.username && (
               <p className="mt-1 text-xs text-red-600">{errors.username}</p>
             )}
-          </div>
+          </div> */}
 
           {/* Password */}
           <div>

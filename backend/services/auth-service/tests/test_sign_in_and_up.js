@@ -3,7 +3,7 @@ import axios from "axios";
 
 async function test_sign_up() {
     try {
-        const res = await axios.post("http://localhost:3001/auth-service/sign-up", {      
+        const res = await axios.post("http://localhost:3000/auth-service/sign-up", {      
             email: "gojousatorux12@gmail.com",
             password: "123456789"
         });
@@ -15,7 +15,7 @@ async function test_sign_up() {
 
 async function test_sign_in() {
     try {
-        const res = await axios.post("http://localhost:3001/auth-service/sign-in", {      
+        const res = await axios.post("http://localhost:3000/auth-service/sign-in", {      
             email: "gojousatorux12@gmail.com",
             password: "123456789"
         });

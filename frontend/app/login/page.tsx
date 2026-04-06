@@ -6,30 +6,35 @@ import { useAuth } from '@/contexts/auth-context';
 import { LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ApiGateway } from '../utils/api';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('');
+  const [Email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const router = useRouter();
   const { login } = useAuth();
+  const api = new ApiGateway();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async(e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
     // Simple validation
-    if (!username.trim() || !password.trim()) {
+    if (!Email.trim() || !password.trim()) {
       setError('Please fill in all fields');
       return;
     }
 
-    // Mock authentication - accepts any username/password combination for demo
-    if (username.length >= 3 && password.length >= 6) {
-      login(username);
+    try {
+      const data = await api.signIn(Email, password);
+      localStorage.setItem('token', data.token);
+      login(Email, data.role, data.token);
       router.push('/');
-    } else {
-      setError('Username must be at least 3 characters and password at least 6 characters');
+    }
+    catch(error: any) {
+      console.log(error.message);
+      setError("Wrong email or password, please check again! " + error.message );
     }
   };
 
@@ -68,23 +73,32 @@ export default function LoginPage() {
         {/* Form */}
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-foreground mb-2">
-              Username
+            <label htmlFor="Email" className="block text-sm font-medium text-foreground mb-2">
+              Email
             </label>
             <Input
-              id="username"
+              id="Email"
               type="text"
-              placeholder="Enter your username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter your Email"
+              value={Email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
-              Password
-            </label>
+            <div className="flex justify-between items-center mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-foreground">
+                Password
+              </label>
+              <button
+                type="button"
+                onClick={() => router.push('/forgot-password')}
+                className="text-xs text-primary hover:underline"
+              >
+                Forgot password?
+              </button>
+            </div>
             <Input
               id="password"
               type="password"
@@ -124,7 +138,7 @@ export default function LoginPage() {
         {/* Demo Info */}
         <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-xs text-blue-700">
-            <span className="font-semibold">Demo mode:</span> Use any username (min 3 chars) and password (min 6 chars)
+            <span className="font-semibold">Demo mode:</span> Use any Email (min 3 chars) and password (min 6 chars)
           </p>
         </div>
       </div>

@@ -1,11 +1,12 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { set } from 'date-fns';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
 interface AuthContextType {
   isLoggedIn: boolean;
-  username: string | null;
-  login: (username: string) => void;
+  email: string | null;
+  login: (email: string, role: string, jwt: string) => void;
   logout: () => void;
 }
 
@@ -13,20 +14,35 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [username, setUsername] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+  const [role, setRole] = useState<string>('guest');
+  const [jwtToken, setJwtToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const login = (username: string) => {
+  useEffect(() => {
+    const savedToken = localStorage.getItem('token');
+    const savedRole = localStorage.getItem('role');
+    const saveEmail = localStorage.getItem('email');
+    if(saveEmail) setEmail(saveEmail);
+    if(savedRole) setRole(savedRole);
+    if(savedToken) setJwtToken(savedToken);
+    setIsLoading(false);
+  }, []);
+
+  const login = (email: string, role: string, jwt: string) => {
+    setRole(role);
+    setJwtToken(jwt);
     setIsLoggedIn(true);
-    setUsername(username);
+    setEmail(email);
   };
 
   const logout = () => {
     setIsLoggedIn(false);
-    setUsername(null);
+    setEmail(null);
   };
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, username, login, logout }}>
+    <AuthContext.Provider value={{ isLoggedIn, email, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

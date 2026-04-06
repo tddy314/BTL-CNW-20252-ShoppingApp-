@@ -1,22 +1,29 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, ShoppingCart, Menu, X, LogOut, User } from 'lucide-react';
+import { Search, ShoppingCart, Menu, X, LogOut, User, Bell, History, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/auth-context';
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const { isLoggedIn, username, logout } = useAuth();
   const router = useRouter();
 
+  const handleNavigation = (path: string) => {
+    setTimeout(() => {
+      router.push(path);
+    }, 0);
+  };
+
   const handleLogout = () => {
     logout();
-    setIsAccountOpen(false);
-    router.push('/');
+    setTimeout(() => {
+      router.push('/');
+    }, 0);
   };
 
   return (
@@ -59,62 +66,108 @@ export function Header() {
           </div>
 
           {/* Auth Buttons */}
-          <div className="flex items-center gap-2 relative">
+          <div className="flex items-center gap-3 relative">
             {isLoggedIn ? (
               <>
+                {/* Cart Button */}
                 <button
-                  onClick={() => setIsAccountOpen(!isAccountOpen)}
-                  className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-opacity-80 transition-all"
+                  onClick={() => handleNavigation('/cart')}
+                  className="hidden sm:flex items-center justify-center p-2 rounded-lg bg-accent text-accent-foreground hover:bg-accent/90 transition-all"
+                  title="Shopping Cart"
                 >
-                  <User className="w-4 h-4" />
-                  {username}
+                  <ShoppingCart className="w-5 h-5" />
                 </button>
-                {/* Account Dropdown */}
-                {isAccountOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-border rounded-lg shadow-lg py-2 z-50">
-                    <div className="px-4 py-2 border-b border-border">
-                      <p className="text-sm text-muted-foreground">Signed in as</p>
-                      <p className="font-semibold text-foreground">{username}</p>
+
+                {/* Notification Icon */}
+                <button
+                  className="hidden sm:flex items-center justify-center p-2 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-all relative"
+                  title="Notifications"
+                >
+                  <Bell className="w-5 h-5" />
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                </button>
+
+                {/* Profile Dropdown Button */}
+                <div className="hidden sm:block relative">
+                  <button
+                    onClick={() => setIsProfileOpen(!isProfileOpen)}
+                    className="flex items-center justify-center p-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-all"
+                    title={`Profile (${username})`}
+                  >
+                    <User className="w-5 h-5" />
+                  </button>
+
+                  {/* Profile Dropdown Menu */}
+                  {isProfileOpen && (
+                    <div className="absolute top-full right-0 mt-2 w-56 bg-white border border-border rounded-lg shadow-lg py-2 z-50">
+                      {/* User Info Header */}
+                      <div className="px-4 py-3 border-b border-border">
+                        <p className="text-sm text-muted-foreground">Signed in as</p>
+                        <p className="font-semibold text-foreground">{username}</p>
+                      </div>
+
+                      {/* Profile Option */}
+                      <button
+                        onClick={() => {
+                          setIsProfileOpen(false);
+                          handleNavigation('/profile');
+                        }}
+                        className="w-full text-left px-4 py-2 text-foreground hover:bg-muted transition-colors text-sm flex items-center gap-3"
+                      >
+                        <User className="w-4 h-4" />
+                        Profile
+                      </button>
+
+                      {/* Order History Option */}
+                      <button
+                        onClick={() => {
+                          setIsProfileOpen(false);
+                          handleNavigation('/orders');
+                        }}
+                        className="w-full text-left px-4 py-2 text-foreground hover:bg-muted transition-colors text-sm flex items-center gap-3"
+                      >
+                        <History className="w-4 h-4" />
+                        Order History
+                      </button>
+
+                      {/* Total Spend Option */}
+                      <button
+                        onClick={() => {
+                          setIsProfileOpen(false);
+                          handleNavigation('/orders');
+                        }}
+                        className="w-full text-left px-4 py-2 text-foreground hover:bg-muted transition-colors text-sm flex items-center gap-3"
+                      >
+                        <DollarSign className="w-4 h-4" />
+                        Total Spend
+                      </button>
+
+                      {/* Sign Out Option */}
+                      <button
+                        onClick={() => {
+                          setIsProfileOpen(false);
+                          handleLogout();
+                        }}
+                        className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 transition-colors text-sm flex items-center gap-3 border-t border-border"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Sign Out
+                      </button>
                     </div>
-                    <button
-                      onClick={() => {
-                        setIsAccountOpen(false);
-                        router.push('/profile');
-                      }}
-                      className="block w-full text-left px-4 py-2 text-foreground hover:bg-muted transition-colors text-sm"
-                    >
-                      My Profile
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsAccountOpen(false);
-                        router.push('/orders');
-                      }}
-                      className="block w-full text-left px-4 py-2 text-foreground hover:bg-muted transition-colors text-sm"
-                    >
-                      My Orders
-                    </button>
-                    <button
-                      onClick={handleLogout}
-                      className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 transition-colors text-sm flex items-center gap-2"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Logout
-                    </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </>
             ) : (
               <>
                 <Button
-                  onClick={() => router.push('/login')}
+                  onClick={() => handleNavigation('/login')}
                   variant="ghost"
                   className="hidden sm:flex text-foreground hover:bg-secondary hover:text-secondary-foreground"
                 >
                   Login
                 </Button>
                 <Button
-                  onClick={() => router.push('/register')}
+                  onClick={() => handleNavigation('/register')}
                   className="hidden sm:flex bg-accent hover:bg-accent/90 text-accent-foreground"
                 >
                   Register
@@ -150,37 +203,72 @@ export function Header() {
             {isLoggedIn ? (
               <>
                 <Button
-                  onClick={() => router.push('/profile')}
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleNavigation('/profile');
+                  }}
                   variant="outline"
                   className="w-full text-foreground border-border hover:bg-muted"
                 >
-                  My Profile
+                  Profile
                 </Button>
                 <Button
-                  onClick={() => router.push('/orders')}
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleNavigation('/cart');
+                  }}
                   variant="outline"
                   className="w-full text-foreground border-border hover:bg-muted"
                 >
-                  My Orders
+                  Shopping Cart
                 </Button>
                 <Button
-                  onClick={handleLogout}
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleNavigation('/orders');
+                  }}
+                  variant="outline"
+                  className="w-full text-foreground border-border hover:bg-muted"
+                >
+                  Order History
+                </Button>
+                <Button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleNavigation('/orders');
+                  }}
+                  variant="outline"
+                  className="w-full text-foreground border-border hover:bg-muted"
+                >
+                  Total Spend
+                </Button>
+                <Button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleLogout();
+                  }}
                   className="w-full bg-red-500 hover:bg-red-600 text-white"
                 >
-                  Logout
+                  Sign Out
                 </Button>
               </>
             ) : (
               <>
                 <Button
-                  onClick={() => router.push('/login')}
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleNavigation('/login');
+                  }}
                   variant="outline"
                   className="w-full text-foreground border-border hover:bg-muted"
                 >
                   Login
                 </Button>
                 <Button
-                  onClick={() => router.push('/register')}
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleNavigation('/register');
+                  }}
                   className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
                 >
                   Register

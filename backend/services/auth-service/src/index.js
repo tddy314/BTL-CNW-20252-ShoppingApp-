@@ -6,11 +6,11 @@ import { router as authRouter } from "./routes/auth.route.js";
 dotenv.config();
 
 export const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: process.env.API_GATEWAY_URL || 'http://localhost:8080',
   credentials: true
 }));
 

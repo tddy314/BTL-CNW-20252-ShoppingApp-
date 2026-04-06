@@ -20,6 +20,21 @@ export class AuthController {
         }
     }
 
+    async signUpAsAdmin(req, res) {
+        try {
+            const {
+                email,
+                password
+            } = req.body;
+            if(!email || !password) throw new Error("No data found");
+            const data = await this.authRepo.signUp(email, password);
+            res.status(200).json({message: "Sucess sign up", data});
+        } 
+        catch(error) {
+            res.status(500).json({message: "Error: " + error.message});
+        }
+    }
+
     async signIn(req, res) {
         try {
             const {
