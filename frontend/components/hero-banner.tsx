@@ -3,6 +3,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Zap, TrendingUp } from 'lucide-react';
+import Link from "next/link"
 
 export function HeroBanner() {
   return (
@@ -37,13 +38,11 @@ export function HeroBanner() {
               <TrendingUp className="w-5 h-5 mr-2" />
               Start Shopping
             </Button>
-            <Button 
-              size="lg" 
-              variant="outline"
-              className="border-white text-white hover:bg-white/10"
-            >
-              View Deals
-            </Button>
+            <Link href="/sell">
+              <Button variant="outline" className="border-white text-white hover:bg-white/10 bg-transparent">
+                Sell on ShopHub
+              </Button>
+            </Link>
           </div>
 
           {/* Stats */}
