@@ -2,16 +2,20 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, ShoppingCart, Menu, X, LogOut, User, Bell, History, DollarSign } from 'lucide-react';
+import { Search, ShoppingCart, Menu, X, LogOut, User, Bell, History, DollarSign, Plus, Store } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/auth-context';
+import { CreateShopDialog } from "@/components/create-shop-dialog"
+import { DropdownMenuSeparator } from '@radix-ui/react-dropdown-menu';
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const { isLoggedIn, username, logout } = useAuth();
+  const { isLoggedIn, email, logout } = useAuth();
   const router = useRouter();
+  
+  const [showCreateShop, setShowCreateShop] = useState(false)
 
   const handleNavigation = (path: string) => {
     setTimeout(() => {
@@ -54,16 +58,14 @@ export function Header() {
           </div>
 
           {/* Search Bar */}
-          <div className="flex-1 max-w-md hidden md:flex">
-            <div className="relative w-full">
-              <Input
-                type="text"
-                placeholder="Search products, brands, and more..."
-                className="pl-4 pr-10 bg-muted text-foreground placeholder:text-muted-foreground border-muted"
-              />
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            </div>
-          </div>
+          <button
+            onClick={() => handleNavigation('/products')}
+            className="flex items-center gap-3 px-4 py-2 rounded-full bg-gradient-to-r from-muted to-muted border border-border hover:border-accent transition-all cursor-pointer flex-1 max-w-md hidden md:flex"
+            title="Search products"
+          >
+            <Search className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+            <span className="text-muted-foreground text-sm">Search products, shops...</span>
+          </button>
 
           {/* Auth Buttons */}
           <div className="flex items-center gap-3 relative">
@@ -92,7 +94,7 @@ export function Header() {
                   <button
                     onClick={() => setIsProfileOpen(!isProfileOpen)}
                     className="flex items-center justify-center p-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-all"
-                    title={`Profile (${username})`}
+                    title={`Profile (${email})`}
                   >
                     <User className="w-5 h-5" />
                   </button>
@@ -103,7 +105,7 @@ export function Header() {
                       {/* User Info Header */}
                       <div className="px-4 py-3 border-b border-border">
                         <p className="text-sm text-muted-foreground">Signed in as</p>
-                        <p className="font-semibold text-foreground">{username}</p>
+                        <p className="font-semibold text-foreground">{email}</p>
                       </div>
 
                       {/* Profile Option */}
@@ -142,6 +144,20 @@ export function Header() {
                         Total Spend
                       </button>
 
+                      <div className="my-1 border-t border-border" />
+
+                        {/* NÚT TẠO SHOP MỚI */}
+                        <button 
+                          onClick={() => { setShowCreateShop(true); setIsProfileOpen(false); }}
+                          className="w-full text-left px-4 py-2 hover:bg-muted text-sm flex items-center gap-3 font-medium text-blue-600"
+                        >
+                          <Plus className="w-4 h-4" /> Create Shop
+                        </button>
+
+                        <button onClick={() => handleNavigation('/my-shops')} className="w-full text-left px-4 py-2 hover:bg-muted text-sm flex items-center gap-3">
+                          <Store className="w-4 h-4" /> My Shops
+                        </button>
+
                       {/* Sign Out Option */}
                       <button
                         onClick={() => {
@@ -174,6 +190,7 @@ export function Header() {
                 </Button>
               </>
             )}
+
             <Button
               variant="ghost"
               size="icon"
@@ -186,16 +203,17 @@ export function Header() {
         </div>
 
         {/* Mobile Search */}
-        <div className="md:hidden mt-4">
-          <div className="relative">
-            <Input
-              type="text"
-              placeholder="Search products..."
-              className="pl-4 pr-10 bg-muted text-foreground placeholder:text-muted-foreground border-muted w-full"
-            />
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-          </div>
-        </div>
+{/* Mobile Search */}
+<div className="md:hidden mt-4 px-2"> {/* Thêm px-2 để không sát mép màn hình */}
+  <button
+    onClick={() => handleNavigation('/products')}
+    className="flex items-center gap-3 px-4 py-2.5 rounded-full bg-gradient-to-r from-muted to-muted border border-border hover:border-accent transition-all cursor-pointer w-full"
+    title="Search products"
+  >
+    <Search className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+    <span className="text-muted-foreground text-sm">Search products, shops...</span>
+  </button>
+</div>
 
         {/* Mobile Menu */}
         {isMenuOpen && (
@@ -242,6 +260,25 @@ export function Header() {
                 >
                   Total Spend
                 </Button>
+                
+                
+
+                {/* NÚT TẠO SHOP MỚI */}
+                <Button 
+                  onClick={() => { setShowCreateShop(true); setIsProfileOpen(false); }}
+                  variant="outline"
+                  className="w-full text-foreground border-border hover:bg-muted"
+                >
+                  <Plus className="w-4 h-4" /> Create Shop
+                </Button>
+
+                <Button 
+                  onClick={() => handleNavigation('/my-shops')} 
+                  variant="outline"
+                  className="w-full text-foreground border-border hover:bg-muted">
+                  <Store className="w-4 h-4" /> My Shops
+                </Button>
+
                 <Button
                   onClick={() => {
                     setIsMenuOpen(false);
@@ -278,6 +315,8 @@ export function Header() {
           </div>
         )}
       </div>
+      <CreateShopDialog open={showCreateShop} onOpenChange={setShowCreateShop} />
     </header>
+    
   );
 }

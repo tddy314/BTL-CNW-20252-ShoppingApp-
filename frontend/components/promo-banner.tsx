@@ -7,9 +7,12 @@ export function PromoBanner() {
   return (
     <section className="bg-secondary/10 py-8 border-y border-border">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Thêm justify-items-center để các cột luôn nằm giữa grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 justify-items-center">
+          
           {/* Free Shipping */}
-          <div className="flex items-center gap-4 text-center md:text-left">
+          {/* Thay đổi: Thêm flex-col trên mobile, md:flex-row trên desktop và items-center */}
+          <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left max-w-[250px]">
             <div className="bg-secondary/20 p-3 rounded-full flex-shrink-0">
               <Truck className="w-6 h-6 text-secondary" />
             </div>
@@ -20,7 +23,7 @@ export function PromoBanner() {
           </div>
 
           {/* Secure Checkout */}
-          <div className="flex items-center gap-4 text-center md:text-left">
+          <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left max-w-[250px]">
             <div className="bg-primary/20 p-3 rounded-full flex-shrink-0">
               <Shield className="w-6 h-6 text-primary" />
             </div>
@@ -31,7 +34,7 @@ export function PromoBanner() {
           </div>
 
           {/* Fast Delivery */}
-          <div className="flex items-center gap-4 text-center md:text-left">
+          <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left max-w-[250px]">
             <div className="bg-accent/20 p-3 rounded-full flex-shrink-0">
               <Zap className="w-6 h-6 text-accent" />
             </div>
@@ -40,6 +43,7 @@ export function PromoBanner() {
               <p className="text-sm text-muted-foreground">Usually within 3-5 days</p>
             </div>
           </div>
+
         </div>
       </div>
     </section>

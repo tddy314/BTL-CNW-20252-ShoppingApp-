@@ -58,7 +58,11 @@ export default function NewPasswordPage() {
       <div className="w-full max-w-md">
         {/* Back to Home Button */}
         <button
-          onClick={() => router.push('/')}
+          onClick={() => {
+            setTimeout(() => {
+              router.push('/');
+            }, 0);
+          }}
           className="text-primary hover:underline text-sm font-medium mb-4 inline-flex items-center gap-1"
         >
           ← Back to Home
@@ -161,7 +165,11 @@ export default function NewPasswordPage() {
               <p className="text-center text-sm text-muted-foreground mt-6">
                 Remember your password?{' '}
                 <button
-                  onClick={() => router.push('/login')}
+                  onClick={() => {
+                    setTimeout(() => {
+                      router.push('/login');
+                    }, 0);
+                  }}
                   className="text-primary font-semibold hover:underline"
                 >
                   Go back to login
@@ -185,7 +193,11 @@ export default function NewPasswordPage() {
 
               {/* Button */}
               <Button
-                onClick={() => router.push('/login')}
+                onClick={() => {
+                  setTimeout(() => {
+                    router.push('/login');
+                  }, 0);
+                }}
                 className="w-full bg-gradient-to-r from-primary to-secondary text-white font-semibold py-3 rounded-lg hover:shadow-lg transition-all duration-300"
               >
                 Go to Login
