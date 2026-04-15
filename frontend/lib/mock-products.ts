@@ -212,7 +212,7 @@ export const mockProducts: Product[] = [
     "Yoga Mat Premium",
     29.99,
     59.99,
-    "Home & Living",
+    "Lifestyle",
     "Wellness Store",
     9,
     823,
@@ -288,6 +288,7 @@ export const categories = [
   "Home & Living",
   "Books & Media",
   "Food & Beverage",
+  "Lifestyle"
 ];
 
 export const sortOptions = [

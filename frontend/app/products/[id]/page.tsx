@@ -2,20 +2,30 @@
 
 import { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { mockProducts } from '@/lib/mock-products';
+//import { mockProducts } from '@/lib/mock-products';
 import { Star, Heart, ShoppingCart, ChevronLeft, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useStore } from '@/lib/store'
+import { Header } from '@/components/header';
+import { ProductComments } from '@/components/product-comment';
 
 export default function ProductDetailPage() {
+  const { products, getProductById, getProductsByCategory, addComment, purchaseProduct, userHasPurchased, user } = useStore()
   const router = useRouter();
   const params = useParams();
   const productId = parseInt(params.id as string);
   
-  const product = mockProducts.find(p => p.id === productId);
+  const product = getProductById(productId.toString());
+  if(!product) return
   const [selectedColor, setSelectedColor] = useState<string>(product?.properties.colors?.[0] || '');
   const [selectedSize, setSelectedSize] = useState<string>(product?.properties.sizes?.[0] || '');
   const [quantity, setQuantity] = useState(1);
   const [isFavorite, setIsFavorite] = useState(false);
+  const handleAddComment = (rating: number, text: string) => {
+    if (user) {
+      addComment(product.id, user.id, user.name, rating, text)
+    }
+  }
 
   if (!product) {
     return (
@@ -33,12 +43,13 @@ export default function ProductDetailPage() {
     );
   }
 
-  const relatedProducts = mockProducts.filter(
+  const relatedProducts = getProductsByCategory(product.category).filter(
     p => p.category === product.category && p.id !== product.id
   ).slice(0, 4);
 
   return (
     <main className="flex-1 bg-background">
+      <Header />
       {/* Back Button */}
       <div className="max-w-7xl mx-auto px-4 py-4">
         <button
@@ -95,7 +106,7 @@ export default function ProductDetailPage() {
                   ))}
                 </div>
                 <span className="text-sm text-muted-foreground">
-                  {product.rating} ({product.reviews} reviews) • {product.sold.toLocaleString()} sold
+                  {product.rating} ({product.reviews} reviews) • {product.soldCount.toLocaleString()} sold
                 </span>
               </div>
             </div>
@@ -227,6 +238,7 @@ export default function ProductDetailPage() {
           </div>
         </div>
 
+       
         {/* Seller Section */}
         <div className="bg-white rounded-lg border border-border p-6 mb-12">
           <div className="flex items-center justify-between">
@@ -267,15 +279,22 @@ export default function ProductDetailPage() {
             </Button>
           </div>
         </div>
-
+        <div className="flex flex-col gap-12 mt-12 pb-20">
         {/* Description */}
-        <div className="bg-white rounded-lg border border-border p-6 mb-12">
+        <div className="bg-white rounded-lg border border-border p-6">
           <h2 className="text-2xl font-bold text-foreground mb-4">Product Description</h2>
           <p className="text-muted-foreground leading-relaxed mb-4">{product.description}</p>
           <p className="text-muted-foreground leading-relaxed">
             This product is sourced from our trusted suppliers and meets our quality standards. Returns are accepted within 30 days of purchase in original condition.
           </p>
         </div>
+
+        <ProductComments
+          comments={product.comments || []}
+          productRating={product.rating || 4.5}
+          onAddComment={handleAddComment}
+          userCanComment={userHasPurchased(product.id)}
+        />
 
         {/* Related Products */}
         {relatedProducts.length > 0 && (
@@ -334,6 +353,7 @@ export default function ProductDetailPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
     </main>
   );
