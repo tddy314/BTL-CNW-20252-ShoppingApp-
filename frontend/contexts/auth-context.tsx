@@ -6,10 +6,12 @@ import React, { createContext, useContext, useState, ReactNode, useEffect } from
 interface AuthContextType {
   isLoggedIn: boolean;
   email: string | null;
+  role: string;
+  jwtToken: string | null;
+  isLoading: boolean; // Quan trọng: Để tránh nháy trang khi đang check token
   login: (email: string, role: string, jwt: string) => void;
   logout: () => void;
 }
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -22,10 +24,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const savedToken = localStorage.getItem('token');
     const savedRole = localStorage.getItem('role');
-    const saveEmail = localStorage.getItem('email');
-    if(saveEmail) setEmail(saveEmail);
-    if(savedRole) setRole(savedRole);
-    if(savedToken) setJwtToken(savedToken);
+    const savedEmail = localStorage.getItem('email');
+    if (savedToken && savedEmail) {
+      setJwtToken(savedToken);
+      setEmail(savedEmail);
+      setRole(savedRole || 'guest');
+      setIsLoggedIn(true);
+    }
     setIsLoading(false);
   }, []);
 
@@ -39,10 +44,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setIsLoggedIn(false);
     setEmail(null);
+    setRole('guest');
+    setJwtToken(null);
+
+    localStorage.removeItem('email');
+    localStorage.removeItem('role');
+    localStorage.removeItem('token');
   };
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, email, login, logout }}>
+    <AuthContext.Provider value={{ isLoggedIn, email, role, jwtToken, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

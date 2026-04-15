@@ -47,7 +47,7 @@ export function Header() {
       <div className="max-w-7xl mx-auto px-4 py-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           {/* Logo and Brand */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div onClick={() => router.push('/')} className="flex items-center gap-2 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
             <div className="bg-gradient-to-br from-primary to-secondary rounded-lg p-2">
               <ShoppingCart className="w-6 h-6 text-white" />
             </div>
