@@ -64,7 +64,7 @@ export function CreateShopDialog({ open, onOpenChange }: CreateShopDialogProps) 
     setBankingQR(null)
     setIsSubmitting(false)
     onOpenChange(false)
-    router.push("/")
+    router.push("/my-shops")
   }
 
   return (
