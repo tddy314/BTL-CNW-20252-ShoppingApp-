@@ -39,6 +39,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setJwtToken(jwt);
     setIsLoggedIn(true);
     setEmail(email);
+
+    localStorage.setItem('token', jwt);
+    localStorage.setItem('role', role);
+    localStorage.setItem('email', email);
   };
 
   const logout = () => {

@@ -15,6 +15,7 @@ export default function MyShopsPage() {
   const [showCreateShop, setShowCreateShop] = useState(false)
 
   const shops = getUserShops()
+  //console.log(shops);
 
   if (!user?.isLoggedIn) {
     return (

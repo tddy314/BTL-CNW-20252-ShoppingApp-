@@ -11,7 +11,7 @@ export interface ProductComment {
   text: string
   createdAt: Date
 }
-
+export type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled"
 export interface Product {
   id: string
   name: string
@@ -55,11 +55,35 @@ export interface User {
   id: string
   email: string
   name: string
+  avatar: string
   isLoggedIn: boolean
+  isAdmin: boolean
+  totalSpend: number
   shops: Shop[]
   purchasedProductIds: string[]
 }
+export interface OrderItem {
+  productId: string
+  productName: string
+  quantity: number
+  price: number
+  shopId: string
+  shopName: string
+  category: string
+}
 
+export interface Order {
+  id: string
+  userId: string
+  userName: string
+  userEmail: string
+  items: OrderItem[]
+  totalPrice: number
+  status: OrderStatus
+  createdAt: Date
+  updatedAt: Date
+  shippingAddress: string
+}
 interface StoreContextType {
   user: User | null
   setUser: (user: User | null) => void
@@ -75,6 +99,10 @@ interface StoreContextType {
   purchaseProduct: (productId: string) => void
   getProductComments: (productId: string) => ProductComment[]
   userHasPurchased: (productId: string) => boolean
+  orders: Order[]
+  getOrders: () => Order[]
+  updateOrderStatus: (orderId: string, status: OrderStatus) => void
+  getTodayFinishedOrders: () => Order[]
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined)
@@ -539,12 +567,101 @@ const sampleProducts: Product[] = [
     shopRating: 0
   }
 ];
+const sampleOrders: Order[] = [
+  {
+    id: "ORD001",
+    userId: "user2",
+    userName: "John Doe",
+    userEmail: "john@example.com",
+    items: [
+      { productId: "1", productName: "Classic Men's T-Shirt", quantity: 2, price: 29.99, shopId: "shop1", shopName: "Urban Style Co", category: "mens-fashion" },
+    ],
+    totalPrice: 59.98,
+    status: "pending",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    shippingAddress: "123 Main St, New York, NY 10001",
+  },
+  {
+    id: "ORD002",
+    userId: "user3",
+    userName: "Jane Smith",
+    userEmail: "jane@example.com",
+    items: [
+      { productId: "4", productName: "Elegant Women's Dress", quantity: 1, price: 79.99, shopId: "shop2", shopName: "Glamour Boutique", category: "womens-fashion" },
+    ],
+    totalPrice: 79.99,
+    status: "processing",
+    createdAt: new Date(Date.now() - 3600000),
+    updatedAt: new Date(Date.now() - 1800000),
+    shippingAddress: "456 Oak Ave, Los Angeles, CA 90001",
+  },
+  {
+    id: "ORD003",
+    userId: "user4",
+    userName: "Mike Johnson",
+    userEmail: "mike@example.com",
+    items: [
+      { productId: "10", productName: "Wireless Headphones", quantity: 1, price: 149.99, shopId: "shop4", shopName: "TechZone", category: "electronics" },
+    ],
+    totalPrice: 149.99,
+    status: "shipped",
+    createdAt: new Date(Date.now() - 7200000),
+    updatedAt: new Date(Date.now() - 3600000),
+    shippingAddress: "789 Pine Rd, Chicago, IL 60601",
+  },
+  {
+    id: "ORD004",
+    userId: "user5",
+    userName: "Sarah Wilson",
+    userEmail: "sarah@example.com",
+    items: [
+      { productId: "13", productName: "Running Shoes", quantity: 1, price: 119.99, shopId: "shop5", shopName: "Foot Forward", category: "shoes-footwear" },
+    ],
+    totalPrice: 119.99,
+    status: "delivered",
+    createdAt: new Date(Date.now() - 86400000),
+    updatedAt: new Date(),
+    shippingAddress: "321 Elm St, Houston, TX 77001",
+  },
+  {
+    id: "ORD005",
+    userId: "user6",
+    userName: "Emma Davis",
+    userEmail: "emma@example.com",
+    items: [
+      { productId: "7", productName: "Organic Coffee Beans", quantity: 3, price: 19.99, shopId: "shop3", shopName: "Tasty Treats", category: "food-beverage" },
+    ],
+    totalPrice: 59.97,
+    status: "pending",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    shippingAddress: "654 Maple Dr, Phoenix, AZ 85001",
+  },
+  {
+    id: "ORD006",
+    userId: "user7",
+    userName: "Alex Brown",
+    userEmail: "alex@example.com",
+    items: [
+      { productId: "20", productName: "Decorative Cushions Set", quantity: 1, price: 44.99, shopId: "shop7", shopName: "Home Decor Plus", category: "home-living" },
+    ],
+    totalPrice: 44.99,
+    status: "delivered",
+    createdAt: new Date(Date.now() - 86400000),
+    updatedAt: new Date(),
+    shippingAddress: "987 Birch Ln, Philadelphia, PA 19101",
+  },
+]
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>({
     id: "user1",
     email: "ntduong.14032005@gmail.com",
     name: "Nguyen Duong",
+    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400",
     isLoggedIn: true,
+    isAdmin: true,
+    totalSpend: 1250.50,
     shops: [],
     purchasedProductIds: ["1", "2", "4", "7", "10"],
   })
@@ -557,6 +674,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       comments: sampleComments.filter((c) => c.productId === p.id),
     }))
   )
+  const [orders, setOrders] = useState<Order[]>(sampleOrders)
 
   const addShop = (shop: Shop) => {
     setShops((prev) => [...prev, shop])
@@ -643,6 +761,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const userHasPurchased = (productId: string) => {
     return user?.purchasedProductIds.includes(productId) || false
   }
+  const getOrders = () => {
+    return orders
+  }
+
+  const updateOrderStatus = (orderId: string, status: OrderStatus) => {
+    setOrders((prev) =>
+      prev.map((order) =>
+        order.id === orderId
+          ? { ...order, status, updatedAt: new Date() }
+          : order
+      )
+    )
+  }
+
+  const getTodayFinishedOrders = () => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return orders.filter(
+      (order) =>
+        (order.status === "delivered" || order.status === "cancelled") &&
+        order.updatedAt >= today
+    )
+  }
 
   return (
     <StoreContext.Provider
@@ -661,6 +802,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         purchaseProduct,
         getProductComments,
         userHasPurchased,
+        orders,
+        getOrders,
+        updateOrderStatus,
+        getTodayFinishedOrders,
       }}
     >
       {children}
@@ -675,3 +820,4 @@ export function useStore() {
   }
   return context
 }
+
