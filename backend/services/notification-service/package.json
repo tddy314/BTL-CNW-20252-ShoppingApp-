@@ -1,5 +1,24 @@
 {
   "name": "notification-service",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "demo": "node demo/send_demo.js"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.3",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "ioredis": "^5.3.2",
+    "jsonwebtoken": "^9.0.0",
+    "socket.io": "^4.7.2",
+    "@socket.io/redis-adapter": "^7.1.0"
+  }
+}
+{
+  "name": "notification-service",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
