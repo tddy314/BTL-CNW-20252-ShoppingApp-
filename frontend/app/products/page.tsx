@@ -8,14 +8,22 @@ import { Button } from '@/components/ui/button';
 import { Header } from '@/components/header';
 import { SearchFilter } from '@/components/search-filter';
 import { Footer } from '@/components/footer';
-import { mockProducts, Product, sortOptions } from '@/lib/mock-products';
+import { useStore, type Product } from '@/lib/store';
 
 const ITEMS_PER_PAGE = 12;
 
 function ProductsContent() {
+  const sortOptions = [
+    { label: 'Relevance', value: 'relevance' },
+    { label: 'Price: Low to High', value: 'price_asc' },
+    { label: 'Price: High to Low', value: 'price_desc' },
+    { label: 'Newest', value: 'newest' },
+    { label: 'Popularity', value: 'popularity' },
+  ];
+  const { products } = useStore();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>(mockProducts);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>(products);
   const [sortBy, setSortBy] = useState('relevance');
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -26,9 +34,9 @@ function ProductsContent() {
 
   useEffect(() => {
     // Filter products based on search params
-    let results = mockProducts;
+    let results = [...products];
 
-    if (category && category !== 'All Categories') {
+    if (category && category !== 'All Categories' && category !== 'all') {
       results = results.filter((p) => p.category === category);
     }
 
@@ -54,10 +62,13 @@ function ProductsContent() {
         sorted.sort((a, b) => b.price - a.price);
         break;
       case 'newest':
-        sorted.reverse();
+        sorted.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
         break;
       case 'popularity':
-        sorted.sort((a, b) => b.reviews - a.reviews);
+        sorted.sort((a, b) => b.soldCount - a.soldCount);
         break;
       default:
         break;
@@ -65,7 +76,7 @@ function ProductsContent() {
 
     setFilteredProducts(sorted);
     setCurrentPage(1); // Reset to first page when filters change
-  }, [category, shopName, searchQuery, sortBy]);
+  }, [category, shopName, searchQuery, sortBy, products]);
 
   // Pagination
   const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
@@ -175,12 +186,12 @@ function ProductsContent() {
             -{product.discount}%
           </div>
         )}
-        {product.isNew && (
+        {product.tags.includes('new') && (
           <div className="absolute top-2 left-2 bg-accent text-white text-xs font-bold px-2 py-1 rounded">
             NEW
           </div>
         )}
-        {product.isTrending && (
+        {product.tags.includes('trending') && (
           <div className="absolute bottom-2 left-2 bg-secondary text-white text-xs font-bold px-2 py-1 rounded">
             TRENDING
           </div>
@@ -211,7 +222,7 @@ function ProductsContent() {
             ))}
           </div>
           <span className="text-xs text-muted-foreground">
-            ({product.reviews})
+            ({product.soldCount} sold)
           </span>
         </div>
 

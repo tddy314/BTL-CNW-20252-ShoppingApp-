@@ -10,19 +10,18 @@ import { Header } from '@/components/header';
 import { ProductComments } from '@/components/product-comment';
 
 export default function ProductDetailPage() {
-  const { products, getProductById, getProductsByCategory, addComment, purchaseProduct, userHasPurchased, user } = useStore()
+  const { products, getProductById, getProductsByCategory, addComment, purchaseProduct, userHasPurchased, user, getShopById } = useStore()
   const router = useRouter();
   const params = useParams();
-  const productId = parseInt(params.id as string);
-  
-  const product = getProductById(productId.toString());
-  if(!product) return
+  const rawParamId = params.id;
+  const productId = Array.isArray(rawParamId) ? rawParamId[0] : rawParamId;
+  const product = productId ? getProductById(productId) : undefined;
   const [selectedColor, setSelectedColor] = useState<string>(product?.properties.colors?.[0] || '');
   const [selectedSize, setSelectedSize] = useState<string>(product?.properties.sizes?.[0] || '');
   const [quantity, setQuantity] = useState(1);
   const [isFavorite, setIsFavorite] = useState(false);
   const handleAddComment = (rating: number, text: string) => {
-    if (user) {
+    if (user && product) {
       addComment(product.id, user.id, user.name, rating, text)
     }
   }
@@ -42,6 +41,9 @@ export default function ProductDetailPage() {
       </div>
     );
   }
+
+  const isShopOwner = Boolean(user?.id && getShopById(product.shopId)?.ownerId === user.id)
+  const canComment = Boolean(user?.isLoggedIn && (userHasPurchased(product.id) || isShopOwner))
 
   const relatedProducts = getProductsByCategory(product.category).filter(
     p => p.category === product.category && p.id !== product.id
@@ -293,7 +295,7 @@ export default function ProductDetailPage() {
           comments={product.comments || []}
           productRating={product.rating || 4.5}
           onAddComment={handleAddComment}
-          userCanComment={userHasPurchased(product.id)}
+          userCanComment={canComment}
         />
 
         {/* Related Products */}

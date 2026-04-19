@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { categories } from '@/lib/mock-products';
+import { useStore } from '@/lib/store';
 
 interface SearchFilterProps {
   onSearch?: (filters: SearchFilters) => void;
@@ -18,10 +18,13 @@ export interface SearchFilters {
 }
 
 export function SearchFilter({ onSearch }: SearchFilterProps) {
+  const { products } = useStore();
   const [category, setCategory] = useState('All Categories');
   const [shopName, setShopName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
+
+  const categoryOptions = ['All Categories', ...Array.from(new Set(products.map((product) => product.category)))];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +66,7 @@ export function SearchFilter({ onSearch }: SearchFilterProps) {
               onChange={(e) => setCategory(e.target.value)}
               className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              {categories.map((cat) => (
+              {categoryOptions.map((cat) => (
                 <option key={cat} value={cat}>
                   {cat}
                 </option>
