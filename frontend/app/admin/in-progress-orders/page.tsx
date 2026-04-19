@@ -62,6 +62,19 @@ function SafeDate({ date }: { date: Date }) {
     </>
   );
 }
+
+function getAllowedNextStatuses(status: OrderStatus): OrderStatus[] {
+  if (status === 'processing') {
+    return ['shipped']
+  }
+
+  if (status === 'shipped') {
+    return ['delivered']
+  }
+
+  return []
+}
+
 export default function InProgressOrdersPage() {
   const { user, getOrders, updateOrderStatus, getTodayFinishedOrders } = useStore()
   const [searchId, setSearchId] = useState('')
@@ -381,16 +394,28 @@ export default function InProgressOrdersPage() {
                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[order.status]}`}>
                           {statusLabels[order.status]}
                         </span>
-                        <Select value={order.status} onValueChange={(value) => updateOrderStatus(order.id, value as OrderStatus)}>
+                        <Select
+                          value={order.status}
+                          onValueChange={(value) => {
+                            const nextStatus = value as OrderStatus
+                            const allowed = getAllowedNextStatuses(order.status)
+
+                            if (allowed.includes(nextStatus)) {
+                              updateOrderStatus(order.id, nextStatus)
+                            }
+                          }}
+                          disabled={getAllowedNextStatuses(order.status).length === 0}
+                        >
                           <SelectTrigger className="w-40">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="processing">Processing</SelectItem>
-                            <SelectItem value="shipped">Shipped</SelectItem>
-                            <SelectItem value="delivered">Delivered</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                            <SelectItem value={order.status}>{statusLabels[order.status]}</SelectItem>
+                            {getAllowedNextStatuses(order.status).map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {statusLabels[status]}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>

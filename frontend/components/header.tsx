@@ -82,6 +82,7 @@ export function Header() {
 
                 {/* Notification Icon */}
                 <button
+                  onClick={() => handleNavigation('/notifications')}
                   className="hidden sm:flex items-center justify-center p-2 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-all relative"
                   title="Notifications"
                 >
@@ -239,6 +240,16 @@ export function Header() {
                   className="w-full text-foreground border-border hover:bg-muted"
                 >
                   Shopping Cart
+                </Button>
+                <Button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleNavigation('/notifications');
+                  }}
+                  variant="outline"
+                  className="w-full text-foreground border-border hover:bg-muted"
+                >
+                  Notifications
                 </Button>
                 <Button
                   onClick={() => {

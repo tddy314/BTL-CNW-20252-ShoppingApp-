@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Upload, Package } from "lucide-react"
 import {
   Dialog,
@@ -23,12 +23,14 @@ import {
 } from "@/components/ui/select"
 import { useStore } from "@/lib/store"
 import { categories } from "@/components/category-grid"
+import type { Product } from "@/lib/store"
 
 interface PublishProductDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   shopId: string
   shopName: string
+  existingProduct?: Product | null
 }
 
 export function PublishProductDialog({
@@ -36,14 +38,60 @@ export function PublishProductDialog({
   onOpenChange,
   shopId,
   shopName,
+  existingProduct,
 }: PublishProductDialogProps) {
-  const { addProductToShop } = useStore()
+  const { addProductToShop, updateProduct } = useStore()
   const [productName, setProductName] = useState("")
   const [price, setPrice] = useState("")
+  const [originalPrice, setOriginalPrice] = useState("")
   const [description, setDescription] = useState("")
   const [category, setCategory] = useState("")
+  const [tags, setTags] = useState("")
+  const [colors, setColors] = useState("")
+  const [sizes, setSizes] = useState("")
+  const [materials, setMaterials] = useState("")
   const [productImage, setProductImage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const isEditMode = Boolean(existingProduct)
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    if (existingProduct) {
+      setProductName(existingProduct.name)
+      setPrice(String(existingProduct.price))
+      setOriginalPrice(String(existingProduct.originalPrice || existingProduct.price))
+      setDescription(existingProduct.description)
+      setCategory(existingProduct.category)
+      setTags(existingProduct.tags.join(", "))
+      setColors((existingProduct.properties.colors || []).join(", "))
+      setSizes((existingProduct.properties.sizes || []).join(", "))
+      setMaterials((existingProduct.properties.materials || []).join(", "))
+      setProductImage(existingProduct.image)
+      return
+    }
+
+    setProductName("")
+    setPrice("")
+    setOriginalPrice("")
+    setDescription("")
+    setCategory("")
+    setTags("")
+    setColors("")
+    setSizes("")
+    setMaterials("")
+    setProductImage(null)
+  }, [existingProduct, open])
+
+  const parseCSV = (value: string): string[] => {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -61,30 +109,55 @@ export function PublishProductDialog({
 
     setIsSubmitting(true)
 
-    // Simulate API call
+    const parsedPrice = parseFloat(price)
+    const parsedOriginalPrice = originalPrice ? parseFloat(originalPrice) : parsedPrice
+    const parsedTags = parseCSV(tags)
+    const parsedColors = parseCSV(colors)
+    const parsedSizes = parseCSV(sizes)
+    const parsedMaterials = parseCSV(materials)
+
+    if (Number.isNaN(parsedPrice) || Number.isNaN(parsedOriginalPrice)) {
+      setIsSubmitting(false)
+      return
+    }
+
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    const newProduct = {
-      id: `product-${Date.now()}`,
+    const payload: Product = {
+      id: existingProduct?.id ?? `product-${Date.now()}`,
       name: productName,
-      price: parseFloat(price),
+      price: parsedPrice,
       image: productImage,
       category: category,
       shopId: shopId,
       shopName: shopName,
       description: description,
-      soldCount: 0,
-      createdAt: new Date(),
-      tags: [],
-      rating: 0,
+      soldCount: existingProduct?.soldCount ?? 0,
+      createdAt: existingProduct?.createdAt ?? new Date(),
+      tags: parsedTags,
+      rating: existingProduct?.rating ?? 0,
       properties: {
-
+        colors: parsedColors,
+        sizes: parsedSizes,
+        materials: parsedMaterials,
       },
-      originalPrice: 0,
-      shopRating: 0
+      originalPrice: parsedOriginalPrice,
+      shopRating: existingProduct?.shopRating ?? 0,
+      shopAvatar: existingProduct?.shopAvatar,
+      comments: existingProduct?.comments,
+      images: existingProduct?.images,
+      reviews: existingProduct?.reviews,
+      discount:
+        parsedOriginalPrice > 0 && parsedOriginalPrice > parsedPrice
+          ? Math.round(((parsedOriginalPrice - parsedPrice) / parsedOriginalPrice) * 100)
+          : 0,
     }
 
-    addProductToShop(shopId, newProduct)
+    if (existingProduct) {
+      updateProduct(existingProduct.id, payload)
+    } else {
+      addProductToShop(shopId, payload)
+    }
 
     // Reset form
     setProductName("")
@@ -102,10 +175,12 @@ export function PublishProductDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="w-5 h-5 text-[#ee4d2d]" />
-            Publish New Product
+            {isEditMode ? "Edit Product" : "Publish New Product"}
           </DialogTitle>
           <DialogDescription>
-            Add a new product to your shop. Fill in all the details below.
+            {isEditMode
+              ? "Update product information and save your changes."
+              : "Add a new product to your shop. Fill in all the details below."}
           </DialogDescription>
         </DialogHeader>
 
@@ -134,6 +209,19 @@ export function PublishProductDialog({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="originalPrice">Original Price ($)</Label>
+            <Input
+              id="originalPrice"
+              type="number"
+              placeholder="0.00"
+              min="0"
+              step="0.01"
+              value={originalPrice}
+              onChange={(e) => setOriginalPrice(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
             <Select value={category} onValueChange={setCategory}>
               <SelectTrigger>
@@ -158,6 +246,46 @@ export function PublishProductDialog({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="tags">Tags (comma separated)</Label>
+            <Input
+              id="tags"
+              placeholder="example: cotton, basic, summer"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="colors">Colors</Label>
+              <Input
+                id="colors"
+                placeholder="Red, Blue"
+                value={colors}
+                onChange={(e) => setColors(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sizes">Sizes</Label>
+              <Input
+                id="sizes"
+                placeholder="S, M, L"
+                value={sizes}
+                onChange={(e) => setSizes(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="materials">Materials</Label>
+              <Input
+                id="materials"
+                placeholder="Cotton, Denim"
+                value={materials}
+                onChange={(e) => setMaterials(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -215,7 +343,13 @@ export function PublishProductDialog({
             }
             className="bg-[#ee4d2d] hover:bg-[#d73211] text-white"
           >
-            {isSubmitting ? "Publishing..." : "Publish Product"}
+            {isSubmitting
+              ? isEditMode
+                ? "Saving..."
+                : "Publishing..."
+              : isEditMode
+              ? "Save Product"
+              : "Publish Product"}
           </Button>
         </DialogFooter>
       </DialogContent>

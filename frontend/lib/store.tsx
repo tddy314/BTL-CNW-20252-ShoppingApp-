@@ -92,6 +92,8 @@ interface StoreContextType {
   getShopById: (id: string) => Shop | undefined
   getUserShops: () => Shop[]
   addProductToShop: (shopId: string, product: Product) => void
+  updateProduct: (productId: string, updates: Partial<Product>) => void
+  removeProduct: (productId: string) => void
   products: Product[]
   getProductsByCategory: (category: string) => Product[]
   getProductById: (id: string) => Product | undefined
@@ -706,6 +708,51 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     )
   }
 
+  const updateProduct = (productId: string, updates: Partial<Product>) => {
+    setProducts((prev) =>
+      prev.map((product) =>
+        product.id === productId
+          ? {
+              ...product,
+              ...updates,
+              properties: {
+                ...product.properties,
+                ...(updates.properties || {}),
+              },
+            }
+          : product
+      )
+    )
+
+    setShops((prev) =>
+      prev.map((shop) => ({
+        ...shop,
+        products: shop.products.map((product) =>
+          product.id === productId
+            ? {
+                ...product,
+                ...updates,
+                properties: {
+                  ...product.properties,
+                  ...(updates.properties || {}),
+                },
+              }
+            : product
+        ),
+      }))
+    )
+  }
+
+  const removeProduct = (productId: string) => {
+    setProducts((prev) => prev.filter((product) => product.id !== productId))
+    setShops((prev) =>
+      prev.map((shop) => ({
+        ...shop,
+        products: shop.products.filter((product) => product.id !== productId),
+      }))
+    )
+  }
+
   const getProductsByCategory = (category: string) => {
     return products.filter((product) => product.category === category)
   }
@@ -795,6 +842,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         getShopById,
         getUserShops,
         addProductToShop,
+        updateProduct,
+        removeProduct,
         products,
         getProductsByCategory,
         getProductById,
