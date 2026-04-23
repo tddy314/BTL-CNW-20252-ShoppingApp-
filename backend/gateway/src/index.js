@@ -20,8 +20,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api-gate/auth-service', authGate);
 
 app.listen(PORT, () => {
-  console.log(`🚀 BlueMoon Backend Server running on port ${PORT}`);
-  console.log(`📡 API available at http://localhost:${PORT}/api`);
-  console.log(`🏥 Health check at http://localhost:${PORT}/api/health`);
+  console.log(`🚀 GateWay running on port ${PORT}`);
+  console.log(`📡 API GateWay at http://localhost:${PORT}/api-gate`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 });

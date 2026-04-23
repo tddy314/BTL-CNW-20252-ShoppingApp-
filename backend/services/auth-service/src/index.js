@@ -21,8 +21,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/auth-service', authRouter);
 
 app.listen(PORT, () => {
-  console.log(`🚀 BlueMoon Backend Server running on port ${PORT}`);
-  console.log(`📡 API available at http://localhost:${PORT}/api`);
-  console.log(`🏥 Health check at http://localhost:${PORT}/api/health`);
+  console.log(`🚀 Auth Service Server running on port ${PORT}`);
+  console.log(`📡 API available at http://localhost:${PORT}/auth-service`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
