@@ -241,7 +241,7 @@ function ProductsContent() {
         </div>
 
         {/* Add to Cart Button */}
-        <Button 
+        {/* <Button 
           className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-xs py-1 flex items-center justify-center gap-2"
           onClick={(e) => {
             e.stopPropagation(); // Ngăn việc nhảy vào trang chi tiết khi bấm nút này
@@ -250,7 +250,7 @@ function ProductsContent() {
         >
           <ShoppingCart className="w-3 h-3" />
           Add to Cart
-        </Button>
+        </Button> */}
       </div>
     </div>
   ))}

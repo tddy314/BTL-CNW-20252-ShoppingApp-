@@ -8,16 +8,33 @@ import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { useStore } from "@/lib/store"
-import {
-  createMockCartItems,
-  readMockCartItems,
-  removeMockCartItem,
-  writeMockCartItems,
-  type CartSortOption,
-  type MockCartItem,
-} from "@/lib/mock-cart"
-import { useRouter } from "next/navigation"
+import { useAuth } from "@/contexts/auth-context"
+import { ApiGateway } from "@/app/utils/api"
+
+type CartSortOption = "latest" | "oldest" | "price-asc" | "price-desc"
+
+type BackendCartItem = {
+  cartItemId: string
+  shop?: {
+    shopId?: string
+    shopName?: string
+  }
+  productDetail?: {
+    productId?: string
+    productName?: string
+    name?: string
+    image?: string
+    price?: number
+    category?: string
+    quantity?: number
+    selectedOptions?: {
+      color?: string
+      size?: string
+      material?: string
+      [key: string]: string | undefined
+    }
+  }
+}
 
 type CartDisplayItem = {
   id: string
@@ -26,12 +43,15 @@ type CartDisplayItem = {
   addedAt: Date
   selectedColor?: string
   selectedSize?: string
+  selectedMaterial?: string
   name: string
   image: string
   price: number
   category: string
   shopName: string
 }
+
+const gatewayApi = new ApiGateway()
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -50,62 +70,93 @@ function formatDate(value: Date): string {
 
 export default function CartPage() {
   const ITEMS_PER_PAGE = 6
-  const { products } = useStore()
-  const [cartItems, setCartItems] = useState<MockCartItem[]>([])
+  const { isLoggedIn, email } = useAuth()
+  const [cartItems, setCartItems] = useState<BackendCartItem[]>([])
   const [sortBy, setSortBy] = useState<CartSortOption>("latest")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [currentPage, setCurrentPage] = useState<number>(1)
-  const router = useRouter();
+  const [totalPages, setTotalPages] = useState<number>(1)
+  const [totalItems, setTotalItems] = useState<number>(0)
+  const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [errorMessage, setErrorMessage] = useState<string>("")
+
+  const fetchCart = async (page: number) => {
+    if (!email) {
+      return
+    }
+
+    setIsLoading(true)
+    setErrorMessage("")
+
+    try {
+      const result = await gatewayApi.readCart(email, page, ITEMS_PER_PAGE)
+      const items = (result?.items || []) as BackendCartItem[]
+
+      setCartItems(items)
+      setTotalPages(Math.max(1, Number(result?.totalPages || 1)))
+      setTotalItems(Number(result?.totalItems || 0))
+    } catch (error: any) {
+      setCartItems([])
+      setTotalPages(1)
+      setTotalItems(0)
+      setErrorMessage(error?.message || "Unable to load cart")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   useEffect(() => {
-    if (products.length === 0) {
+    if (!isLoggedIn || !email) {
+      setCartItems([])
+      setTotalPages(1)
+      setTotalItems(0)
       return
     }
 
-    const saved = readMockCartItems()
+    fetchCart(currentPage)
+  }, [currentPage, isLoggedIn, email])
 
-    if (saved.length > 0) {
-      setCartItems(saved)
+  const handleRemoveFromCart = async (cartItemId: string) => {
+    if (!email) {
       return
     }
 
-    const mockItems = createMockCartItems(products)
-    setCartItems(mockItems)
-    writeMockCartItems(mockItems)
-  }, [products])
+    try {
+      await gatewayApi.removeItemFromCart(email, cartItemId)
+      const nextPage = cartItems.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage
 
-  const handleRemoveFromCart = (cartItemId: string) => {
-    const next = removeMockCartItem(cartItemId)
-    setCartItems(next)
+      if (nextPage !== currentPage) {
+        setCurrentPage(nextPage)
+      } else {
+        fetchCart(currentPage)
+      }
+    } catch (error: any) {
+      setErrorMessage(error?.message || "Unable to remove item")
+    }
   }
 
   const displayItems = useMemo<CartDisplayItem[]>(() => {
-    const mappedItems: CartDisplayItem[] = []
+    return cartItems.map((item, index) => {
+      const detail = item.productDetail || {}
+      const options = detail.selectedOptions || {}
 
-    for (const item of cartItems) {
-      const product = products.find((candidate) => candidate.id === item.productId)
-
-      if (!product) {
-        continue
+      return {
+        id: item.cartItemId,
+        productId: detail.productId || item.cartItemId,
+        quantity: Number(detail.quantity || 1),
+        // Backend cart item currently has no timestamp; we derive a stable display ordering from response index.
+        addedAt: new Date(Date.now() - index * 1000),
+        selectedColor: options.color,
+        selectedSize: options.size,
+        selectedMaterial: options.material,
+        name: detail.productName || detail.name || "Unknown product",
+        image: detail.image || "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400",
+        price: Number(detail.price || 0),
+        category: detail.category || "uncategorized",
+        shopName: item.shop?.shopName || "Unknown shop",
       }
-
-      mappedItems.push({
-        id: item.id,
-        productId: item.productId,
-        quantity: item.quantity,
-        addedAt: new Date(item.addedAt),
-        selectedColor: item.selectedColor,
-        selectedSize: item.selectedSize,
-        name: product.name,
-        image: product.image,
-        price: product.price,
-        category: product.category,
-        shopName: product.shopName,
-      })
-    }
-
-    return mappedItems
-  }, [cartItems, products])
+    })
+  }, [cartItems])
 
   const categories = useMemo<string[]>(() => {
     const unique = Array.from(new Set(displayItems.map((item) => item.category)))
@@ -141,10 +192,10 @@ export default function CartPage() {
     return total + item.price * item.quantity
   }, 0)
 
-  const totalPages = Math.max(1, Math.ceil(filteredAndSortedItems.length / ITEMS_PER_PAGE))
-
   useEffect(() => {
-    setCurrentPage(1)
+    if (currentPage !== 1) {
+      setCurrentPage(1)
+    }
   }, [sortBy, categoryFilter])
 
   useEffect(() => {
@@ -153,11 +204,7 @@ export default function CartPage() {
     }
   }, [currentPage, totalPages])
 
-  const paginatedItems = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE
-    const end = start + ITEMS_PER_PAGE
-    return filteredAndSortedItems.slice(start, end)
-  }, [currentPage, filteredAndSortedItems, ITEMS_PER_PAGE])
+  const paginatedItems = filteredAndSortedItems
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -182,6 +229,14 @@ export default function CartPage() {
         </section>
 
         <section className="max-w-7xl mx-auto px-4 py-8">
+          {!isLoggedIn ? (
+            <Card className="border border-dashed border-border p-10 text-center mb-6">
+              <ShoppingCart className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+              <h2 className="text-lg font-semibold text-foreground mb-1">Sign in to view your cart</h2>
+              <p className="text-muted-foreground">You need to login before viewing cart items.</p>
+            </Card>
+          ) : null}
+
           <Card className="p-4 md:p-5 border border-border mb-6">
             <div className="flex flex-col md:flex-row md:items-center gap-4 md:justify-between">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -226,10 +281,22 @@ export default function CartPage() {
 
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
             <p className="text-sm text-muted-foreground">
-              Showing {paginatedItems.length} of {filteredAndSortedItems.length} item{filteredAndSortedItems.length === 1 ? "" : "s"}
+              Showing {paginatedItems.length} of {totalItems} item{totalItems === 1 ? "" : "s"}
             </p>
             <p className="text-sm font-semibold text-foreground">Filtered total: {formatCurrency(cartTotal)}</p>
           </div>
+
+          {errorMessage ? (
+            <Card className="border border-destructive/40 bg-destructive/5 p-4 mb-4">
+              <p className="text-sm text-destructive">{errorMessage}</p>
+            </Card>
+          ) : null}
+
+          {isLoading ? (
+            <Card className="border border-border p-8 text-center mb-4">
+              <p className="text-muted-foreground">Loading cart...</p>
+            </Card>
+          ) : null}
 
           {filteredAndSortedItems.length === 0 ? (
             <Card className="border border-dashed border-border p-10 text-center">
@@ -267,6 +334,7 @@ export default function CartPage() {
                         <div className="flex flex-wrap gap-2 mb-2">
                           {item.selectedColor ? <Badge variant="outline">Color: {item.selectedColor}</Badge> : null}
                           {item.selectedSize ? <Badge variant="outline">Size: {item.selectedSize}</Badge> : null}
+                          {item.selectedMaterial ? <Badge variant="outline">Material: {item.selectedMaterial}</Badge> : null}
                         </div>
 
                         <div className="text-sm text-muted-foreground mb-3 flex items-center gap-1">
