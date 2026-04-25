@@ -8,9 +8,14 @@ import { Button } from '@/components/ui/button';
 import { useStore } from '@/lib/store'
 import { Header } from '@/components/header';
 import { ProductComments } from '@/components/product-comment';
+import { useAuth } from '@/contexts/auth-context';
+import { ApiGateway } from '@/app/utils/api';
+
+const gatewayApi = new ApiGateway();
 
 export default function ProductDetailPage() {
   const { products, getProductById, getProductsByCategory, addComment, purchaseProduct, userHasPurchased, user, getShopById } = useStore()
+  const { email, isLoggedIn } = useAuth();
   const router = useRouter();
   const params = useParams();
   const rawParamId = params.id;
@@ -18,11 +23,56 @@ export default function ProductDetailPage() {
   const product = productId ? getProductById(productId) : undefined;
   const [selectedColor, setSelectedColor] = useState<string>(product?.properties.colors?.[0] || '');
   const [selectedSize, setSelectedSize] = useState<string>(product?.properties.sizes?.[0] || '');
+  const [selectedMaterial, setSelectedMaterial] = useState<string>(product?.properties.materials?.[0] || '');
   const [quantity, setQuantity] = useState(1);
   const [isFavorite, setIsFavorite] = useState(false);
   const handleAddComment = (rating: number, text: string) => {
     if (user && product) {
       addComment(product.id, user.id, user.name, rating, text)
+    }
+  }
+
+  const handleAddToCart = async () => {
+    if (!product) {
+      return;
+    }
+
+    if (!isLoggedIn || !email) {
+      alert('Please sign in before adding products to cart.');
+      return;
+    }
+
+    const selectedOptions: Record<string, string> = {};
+    if (selectedColor) {
+      selectedOptions.color = selectedColor;
+    }
+    if (selectedSize) {
+      selectedOptions.size = selectedSize;
+    }
+    if (selectedMaterial) {
+      selectedOptions.material = selectedMaterial;
+    }
+
+    const shopPayload = {
+      shopId: product.shopId,
+      shopName: product.shopName,
+    };
+
+    const productPayload = {
+      productId: product.id,
+      productName: product.name,
+      price: product.price,
+      image: product.image,
+      category: product.category,
+      quantity,
+      selectedOptions,
+    };
+
+    try {
+      await gatewayApi.addItemToCart(email, shopPayload, productPayload);
+      alert(`Added ${quantity} ${product.name}(s) to cart successfully.`);
+    } catch (error: any) {
+      alert(error?.message || 'Failed to add item to cart.');
     }
   }
 
@@ -153,7 +203,7 @@ export default function ProductDetailPage() {
                 </div>
               </div>
             )}
-
+ 
             {product.properties.sizes && product.properties.sizes.length > 0 && (
               <div>
                 <label className="block text-sm font-semibold text-foreground mb-3">
@@ -171,6 +221,29 @@ export default function ProductDetailPage() {
                       }`}
                     >
                       {size}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {product.properties.materials && product.properties.materials.length > 0 && (
+              <div>
+                <label className="block text-sm font-semibold text-foreground mb-3">
+                  Material: <span className="text-primary">{selectedMaterial}</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {product.properties.materials.map(material => (
+                    <button
+                      key={material}
+                      onClick={() => setSelectedMaterial(material)}
+                      className={`px-4 py-2 rounded-lg border-2 transition-all min-w-12 ${
+                        selectedMaterial === material
+                          ? 'border-primary bg-primary/10 text-primary font-semibold'
+                          : 'border-border text-foreground hover:border-primary'
+                      }`}
+                    >
+                      {material}
                     </button>
                   ))}
                 </div>
@@ -202,10 +275,7 @@ export default function ProductDetailPage() {
             {/* Action Buttons */}
             <div className="flex gap-3 pt-4">
               <Button
-                onClick={() => {
-                  // Add to cart logic
-                  alert(`Added ${quantity} ${product.name}(s) to cart with ${selectedColor} color and ${selectedSize} size`);
-                }}
+                onClick={handleAddToCart}
                 className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground py-3 flex items-center justify-center gap-2 text-lg font-semibold"
               >
                 <ShoppingCart className="w-5 h-5" />

@@ -19,7 +19,7 @@ async function addToCart() {
 async function removeFromCart(cartItemId) {
     try {
         const res = await axios.post("http://localhost:3001/cart-service/remove-item-from-cart", {      
-            email: "123@gmail.com",
+            email: "admin1@gmail.com",
             cartItemId
         });
         console.log("Response:", res.data);
@@ -31,7 +31,7 @@ async function removeFromCart(cartItemId) {
 async function readCart() {
     try {
         const res = await axios.post("http://localhost:3001/cart-service/get-cart", {      
-            email: "123@gmail.com",
+            email: "admin1@gmail.com",
             page: 1,
             limit: 5
         });
@@ -43,6 +43,6 @@ async function readCart() {
 }
 
 
-//removeFromCart('1b9ef188-353c-4dc6-8d2f-bbcff7071dde')
+//removeFromCart('c3fddb12-bbf6-4bd0-8d79-b3b77ab727b7')
 //addToCart();
-//readCart();
+readCart();

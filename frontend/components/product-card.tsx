@@ -45,12 +45,12 @@ export function ProductCard({ product }: ProductCardProps) {
           <span className="text-lg font-bold text-[#ee4d2d]">
             ${product.price.toFixed(2)}
           </span>
-          <Button
+          {/* <Button
             size="sm"
             className="bg-[#ee4d2d] hover:bg-[#d73211] text-white"
           >
             <ShoppingCart className="w-4 h-4" />
-          </Button>
+          </Button> */}
         </div>
       </div>
     </Card>
