@@ -83,6 +83,8 @@ export interface Order {
   createdAt: Date
   updatedAt: Date
   shippingAddress: string
+  receiptUrl?: string
+  paymentMethod?: string
 }
 interface StoreContextType {
   user: User | null
@@ -102,6 +104,13 @@ interface StoreContextType {
   orders: Order[]
   getOrders: () => Order[]
   updateOrderStatus: (orderId: string, status: OrderStatus) => void
+  createOrder: (payload: {
+    items: OrderItem[]
+    totalPrice: number
+    shippingAddress: string
+    receiptUrl?: string
+    paymentMethod?: string
+  }) => Order
   getTodayFinishedOrders: () => Order[]
 }
 
@@ -775,6 +784,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     )
   }
 
+  const createOrder = (payload: {
+    items: OrderItem[]
+    totalPrice: number
+    shippingAddress: string
+    receiptUrl?: string
+    paymentMethod?: string
+  }) => {
+    const id = `ORD${Date.now()}`
+    const newOrder: Order = {
+      id,
+      userId: user?.id || 'guest',
+      userName: user?.name || 'Guest',
+      userEmail: user?.email || '',
+      items: payload.items,
+      totalPrice: payload.totalPrice,
+      status: 'pending',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      shippingAddress: payload.shippingAddress,
+      receiptUrl: payload.receiptUrl,
+      paymentMethod: payload.paymentMethod,
+    }
+    setOrders((prev) => [newOrder, ...prev])
+    return newOrder
+  }
+
   const getTodayFinishedOrders = () => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -805,6 +840,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         orders,
         getOrders,
         updateOrderStatus,
+        createOrder,
         getTodayFinishedOrders,
       }}
     >

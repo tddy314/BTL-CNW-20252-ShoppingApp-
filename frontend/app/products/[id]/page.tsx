@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 //import { mockProducts } from '@/lib/mock-products';
 import { Star, Heart, ShoppingCart, ChevronLeft, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import CheckoutDialog from '@/components/checkout-dialog'
 import { useStore } from '@/lib/store'
 import { Header } from '@/components/header';
 import { ProductComments } from '@/components/product-comment';
@@ -21,6 +22,7 @@ export default function ProductDetailPage() {
   const [selectedSize, setSelectedSize] = useState<string>(product?.properties.sizes?.[0] || '');
   const [quantity, setQuantity] = useState(1);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
   const handleAddComment = (rating: number, text: string) => {
     if (user) {
       addComment(product.id, user.id, user.name, rating, text)
@@ -210,10 +212,7 @@ export default function ProductDetailPage() {
                 Add to Cart
               </Button>
               <Button
-                onClick={() => {
-                  // Buy now logic
-                  alert(`Proceeding to checkout for ${quantity} ${product.name}(s)`);
-                }}
+                onClick={() => setShowCheckout(true)}
                 className="flex-1 bg-primary hover:bg-primary/90 text-white py-3 text-lg font-semibold"
               >
                 Buy Now
@@ -355,6 +354,16 @@ export default function ProductDetailPage() {
         )}
         </div>
       </div>
+      <CheckoutDialog
+        open={showCheckout}
+        onOpenChange={setShowCheckout}
+        productId={product.id}
+        productName={product.name}
+        price={product.price}
+        quantity={quantity}
+        shopId={product.shopId}
+        shopName={product.shopName}
+      />
     </main>
   );
 }
