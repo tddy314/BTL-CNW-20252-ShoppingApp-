@@ -23,7 +23,7 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
       </Link>
       <div className="p-4">
-        <Link href={`/product/${product.id}`}>
+        <Link href={`/products/${product.id}`}>
           <h3 className="font-medium text-foreground line-clamp-2 mb-2 hover:text-[#ee4d2d] transition-colors">
             {product.name}
           </h3>
@@ -45,12 +45,12 @@ export function ProductCard({ product }: ProductCardProps) {
           <span className="text-lg font-bold text-[#ee4d2d]">
             ${product.price.toFixed(2)}
           </span>
-          <Button
+          {/* <Button
             size="sm"
             className="bg-[#ee4d2d] hover:bg-[#d73211] text-white"
           >
             <ShoppingCart className="w-4 h-4" />
-          </Button>
+          </Button> */}
         </div>
       </div>
     </Card>
