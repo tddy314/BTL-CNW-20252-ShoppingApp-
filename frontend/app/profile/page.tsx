@@ -143,7 +143,7 @@ export default function ProfilePage() {
             </Link>
 
             {/* Purchase History Button */}
-            <Link href="/order-history" className="flex items-center gap-3 p-4 rounded-lg border-2 border-blue-500 hover:bg-blue-50 transition-colors">
+            <Link href="/orders" className="flex items-center gap-3 p-4 rounded-lg border-2 border-blue-500 hover:bg-blue-50 transition-colors">
               <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
                 <TrendingUp className="w-5 h-5 text-white" />
               </div>

@@ -2,21 +2,19 @@
 
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { useEffect, useMemo, useState } from "react"
-import { ArrowLeft, CheckCircle2, Save } from "lucide-react"
+import { useEffect, useState } from "react"
+import { ArrowLeft, Save, XCircle } from "lucide-react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import {
-  formatPaymentLabel,
-  readMockOrders,
-  updateMockOrder,
-  updateMockOrderStatus,
-  type MockOrder,
-} from "@/lib/mock-order-history"
+import { ApiGateway, type OrderRecord } from "@/app/utils/api"
+import { useAuth } from "@/contexts/auth-context"
+
+const gatewayApi = new ApiGateway()
+const PAGE_SIZE = 20
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -33,65 +31,131 @@ function formatDate(value: string): string {
   }).format(new Date(value))
 }
 
+function paymentLabel(payment: 0 | 1): string {
+  return payment === 0 ? "Cash on Delivery" : "Bank Transfer"
+}
+
+async function readOrderByOrderId(buyer: string, orderId: string): Promise<OrderRecord | null> {
+  const firstPage = await gatewayApi.readOrdersByBuyer({ buyer, page: 1, limit: PAGE_SIZE })
+  const firstItems = firstPage?.items || []
+  const foundOnFirstPage = firstItems.find((item) => item.order_id === orderId)
+
+  if (foundOnFirstPage) {
+    return foundOnFirstPage
+  }
+
+  const totalPages = Number(firstPage?.totalPages || 1)
+
+  for (let page = 2; page <= totalPages; page += 1) {
+    const response = await gatewayApi.readOrdersByBuyer({ buyer, page, limit: PAGE_SIZE })
+    const found = (response?.items || []).find((item) => item.order_id === orderId)
+
+    if (found) {
+      return found
+    }
+  }
+
+  return null
+}
+
 export default function OrderDetailPage() {
   const params = useParams<{ id: string }>()
   const orderId = params.id
+  const { isLoggedIn, email } = useAuth()
 
-  const [order, setOrder] = useState<MockOrder | null>(null)
+  const [order, setOrder] = useState<OrderRecord | null>(null)
   const [receiver, setReceiver] = useState("")
   const [phone, setPhone] = useState("")
   const [address, setAddress] = useState("")
   const [message, setMessage] = useState<string>("")
+  const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [isSaving, setIsSaving] = useState<boolean>(false)
+  const [isCancelling, setIsCancelling] = useState<boolean>(false)
 
-  useEffect(() => {
-    const found = readMockOrders().find((entry) => entry.id === orderId) ?? null
-    setOrder(found)
-
-    if (found) {
-      setReceiver(found.receiver)
-      setPhone(found.phone)
-      setAddress(found.address)
-    }
-  }, [orderId])
-
-  const totalQuantity = useMemo(() => {
-    return order?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0
-  }, [order])
-
-  const handleSave = () => {
-    if (!order) {
+  const loadOrder = async () => {
+    if (!email || !orderId || !isLoggedIn) {
+      setOrder(null)
       return
     }
 
-    const updated = updateMockOrder(order.id, {
-      receiver: receiver.trim(),
-      phone: phone.trim(),
-      address: address.trim(),
-    })
+    setIsLoading(true)
+    setMessage("")
 
-    if (!updated) {
-      setMessage("Unable to update this order right now.")
-      return
+    try {
+      const found = await readOrderByOrderId(email, orderId)
+      setOrder(found)
+
+      if (found) {
+        setReceiver(found.receiver)
+        setPhone(found.phone)
+        setAddress(found.address)
+      } else {
+        setMessage("Order not found.")
+      }
+    } catch (error: any) {
+      setOrder(null)
+      setMessage(error?.message || "Unable to load order")
+    } finally {
+      setIsLoading(false)
     }
-
-    setOrder(updated)
-    setMessage("Order details updated successfully.")
   }
 
-  const handleConfirmReceived = () => {
-    if (!order) {
+  useEffect(() => {
+    loadOrder()
+  }, [orderId, email, isLoggedIn])
+
+  const canEdit = Boolean(order && !["shipped", "delivered", "cancelled"].includes(order.status))
+  const canCancel = Boolean(order && !["shipped", "delivered", "cancelled"].includes(order.status))
+
+  const handleSave = async () => {
+    if (!order || !email || !canEdit) {
       return
     }
 
-    const updated = updateMockOrderStatus(order.id, "delivered")
+    setIsSaving(true)
+    setMessage("")
 
-    if (!updated) {
-      setMessage("Unable to confirm receipt right now.")
+    try {
+      const updated = await gatewayApi.modifyOrder({
+        order_id: order.order_id,
+        buyer: email,
+        receiver: receiver.trim(),
+        phone: phone.trim(),
+        address: address.trim(),
+      })
+
+      setOrder(updated || order)
+      setMessage("Order details updated successfully.")
+      await loadOrder()
+    } catch (error: any) {
+      setMessage(error?.message || "Unable to update this order")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleCancel = async () => {
+    if (!order || !email || !canCancel) {
       return
     }
 
-    setOrder(updated)
-    setMessage("Order marked as delivered. Thank you for confirming receipt.")
+    setIsCancelling(true)
+    setMessage("")
+
+    try {
+      const updated = await gatewayApi.cancelOrder({
+        order_id: order.order_id,
+        buyer: email,
+      })
+
+      setOrder(updated || { ...order, status: "cancelled" })
+      setMessage("Order cancelled successfully.")
+      await loadOrder()
+    } catch (error: any) {
+      setMessage(error?.message || "Unable to cancel this order")
+    } finally {
+      setIsCancelling(false)
+    }
   }
 
   return (
@@ -106,34 +170,39 @@ export default function OrderDetailPage() {
           </Link>
         </div>
 
-        {!order ? (
+        {!isLoggedIn ? (
+          <Card className="p-8 text-center border border-dashed border-border mb-4">
+            <h1 className="text-xl font-semibold text-foreground mb-2">Please sign in</h1>
+            <p className="text-muted-foreground">You need to login before viewing order details.</p>
+          </Card>
+        ) : null}
+
+        {isLoading ? (
+          <Card className="p-8 text-center border border-border mb-4">
+            <p className="text-muted-foreground">Loading order...</p>
+          </Card>
+        ) : null}
+
+        {!isLoading && !order ? (
           <Card className="p-8 text-center border border-dashed border-border">
             <h1 className="text-xl font-semibold text-foreground mb-2">Order not found</h1>
-            <p className="text-muted-foreground">The requested order does not exist in the mock history.</p>
+            <p className="text-muted-foreground">The requested order does not exist.</p>
           </Card>
-        ) : (
+        ) : null}
+
+        {!isLoading && order ? (
           <div className="space-y-5">
             <Card className="p-5 md:p-6 border border-border bg-gradient-to-r from-primary/5 to-background">
               <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
                 <div>
-                  <h1 className="text-2xl font-bold text-foreground">Order {order.id}</h1>
-                  <p className="text-sm text-muted-foreground mt-1">Review your order and update delivery info if needed.</p>
+                  <h1 className="text-2xl font-bold text-foreground">Order {order.order_id}</h1>
+                  <p className="text-sm text-muted-foreground mt-1">You can update receiver info while order is not shipped/delivered/cancelled.</p>
                 </div>
 
                 <Badge variant="secondary" className="capitalize">{order.status}</Badge>
               </div>
 
-              <p className="text-sm text-muted-foreground">Created: {formatDate(order.createdAt)}</p>
-              <p className="text-sm text-muted-foreground">Updated: {formatDate(order.updatedAt)}</p>
-
-              {(order.status === "shipped" || order.status === "processing") ? (
-                <div className="mt-4">
-                  <Button onClick={handleConfirmReceived} className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Confirm Received
-                  </Button>
-                </div>
-              ) : null}
+              <p className="text-sm text-muted-foreground">Created: {formatDate(order.created_at)}</p>
             </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -143,12 +212,12 @@ export default function OrderDetailPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium mb-2 text-foreground">Receiver</label>
-                    <Input value={receiver} onChange={(event) => setReceiver(event.target.value)} />
+                    <Input value={receiver} onChange={(event) => setReceiver(event.target.value)} disabled={!canEdit} />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium mb-2 text-foreground">Phone Number</label>
-                    <Input value={phone} onChange={(event) => setPhone(event.target.value)} />
+                    <Input value={phone} onChange={(event) => setPhone(event.target.value)} disabled={!canEdit} />
                   </div>
 
                   <div>
@@ -157,26 +226,32 @@ export default function OrderDetailPage() {
                       value={address}
                       onChange={(event) => setAddress(event.target.value)}
                       rows={4}
-                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                      disabled={!canEdit}
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
                     />
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <Button onClick={handleSave} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                    <Button onClick={handleSave} disabled={!canEdit || isSaving} className="bg-primary hover:bg-primary/90 text-primary-foreground">
                       <Save className="w-4 h-4" />
                       Save Delivery Info
+                    </Button>
+
+                    <Button onClick={handleCancel} disabled={!canCancel || isCancelling} variant="destructive">
+                      <XCircle className="w-4 h-4" />
+                      Cancel Order
                     </Button>
                   </div>
                 </div>
               </Card>
 
               <Card className="p-5 border border-border">
-                <h2 className="text-lg font-semibold text-foreground mb-4">Payment and Price</h2>
+                <h2 className="text-lg font-semibold text-foreground mb-4">Order Summary</h2>
 
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Payment</span>
-                    <span className="font-medium text-foreground">{formatPaymentLabel(order)}</span>
+                    <span className="font-medium text-foreground">{paymentLabel(order.payment)}</span>
                   </div>
 
                   <div className="flex items-center justify-between">
@@ -185,24 +260,24 @@ export default function OrderDetailPage() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Total Quantity</span>
-                    <span className="font-medium text-foreground">{totalQuantity}</span>
+                    <span className="text-muted-foreground">Quantity</span>
+                    <span className="font-medium text-foreground">{order.quantity}</span>
                   </div>
 
                   <div className="pt-2 mt-2 border-t border-border flex items-center justify-between">
                     <span className="text-muted-foreground">Total Price</span>
-                    <span className="font-semibold text-primary">{formatCurrency(order.totalPrice)}</span>
+                    <span className="font-semibold text-primary">{formatCurrency(Number(order.price || 0))}</span>
                   </div>
 
-                  {order.paymentMethod === "bank-transfer" ? (
+                  {order.payment === 1 ? (
                     <>
                       <div className="pt-2 mt-2 border-t border-border flex items-center justify-between">
-                        <span className="text-muted-foreground">Transfer Status</span>
-                        <span className="font-medium text-foreground capitalize">{order.bankTransferStatus ?? "pending"}</span>
+                        <span className="text-muted-foreground">Bank</span>
+                        <span className="font-medium text-foreground">{order.bank || "N/A"}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Transfer Proof</span>
-                        <span className="font-medium text-foreground">{order.transferProofFileName ?? "Not uploaded"}</span>
+                        <span className="text-muted-foreground">Bank Number</span>
+                        <span className="font-medium text-foreground">{order.bank_number || "N/A"}</span>
                       </div>
                     </>
                   ) : null}
@@ -210,39 +285,13 @@ export default function OrderDetailPage() {
               </Card>
             </div>
 
-            {order.paymentMethod === "bank-transfer" && order.transferProofImageDataUrl ? (
-              <Card className="p-5 border border-border">
-                <h2 className="text-lg font-semibold text-foreground mb-4">Transfer Proof Preview</h2>
-                <img
-                  src={order.transferProofImageDataUrl}
-                  alt="Transfer proof"
-                  className="max-h-96 rounded-md border border-border"
-                />
-              </Card>
-            ) : null}
-
-            <Card className="p-5 border border-border">
-              <h2 className="text-lg font-semibold text-foreground mb-4">Order Items</h2>
-              <div className="space-y-3">
-                {order.items.map((item) => (
-                  <div key={`${order.id}-${item.productId}`} className="rounded-md border border-border p-3">
-                    <p className="font-medium text-foreground">{item.productName}</p>
-                    <p className="text-sm text-muted-foreground">Shop: {item.shopName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatCurrency(item.unitPrice)} x {item.quantity}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
             {message ? (
               <Card className="p-4 border border-border bg-muted/40">
                 <p className="text-sm text-foreground">{message}</p>
               </Card>
             ) : null}
           </div>
-        )}
+        ) : null}
       </main>
 
       <Footer />

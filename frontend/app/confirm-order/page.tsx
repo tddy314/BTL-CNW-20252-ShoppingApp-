@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo, useState, type ChangeEvent } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, CreditCard, ReceiptText } from "lucide-react"
 import { Header } from "@/components/header"
@@ -9,9 +9,33 @@ import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { useStore } from "@/lib/store"
-import { appendMockOrder, type MockOrder, type MockPaymentMethod } from "@/lib/mock-order-history"
-import { readMockCartItems, removeMockCartItem, type MockCartItem } from "@/lib/mock-cart"
+import { useAuth } from "@/contexts/auth-context"
+import { ApiGateway, normalizeIdentifierToUuid } from "@/app/utils/api"
+
+type PaymentMethod = "cash" | "bank-transfer"
+
+type CartApiItem = {
+  cartItemId: string
+  shop?: {
+    shopId?: string
+    shopName?: string
+  }
+  productDetail?: {
+    productId?: string
+    productName?: string
+    image?: string
+    price?: number
+    category?: string
+    quantity?: number
+    selectedOptions?: {
+      color?: string
+      size?: string
+      material?: string
+    }
+  }
+}
+
+const gatewayApi = new ApiGateway()
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -21,140 +45,152 @@ function formatCurrency(value: number): string {
   }).format(value)
 }
 
-function createOrderId(): string {
-  return `ORD-${Date.now()}`
-}
-
-function buildMockMomoUrl(orderId: string, amount: number): string {
-  return `https://test-payment.momo.vn/pay?orderId=${encodeURIComponent(orderId)}&amount=${encodeURIComponent(
-    amount.toFixed(2)
-  )}`
-}
-
-function buildSellerQrUrl(shopId: string, amount: number): string {
-  const payload = `BANK_TRANSFER|shop=${shopId}|amount=${amount.toFixed(2)}`
-  return `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(payload)}`
-}
-
-function readCartItem(cartItemId: string | null): MockCartItem | null {
-  if (!cartItemId) {
+function parseSizeToSmallInt(size?: string): number | null {
+  if (!size) {
     return null
   }
 
-  return readMockCartItems().find((item) => item.id === cartItemId) ?? null
+  const parsed = Number(size)
+  if (!Number.isInteger(parsed)) {
+    return null
+  }
+
+  if (parsed < -32768 || parsed > 32767) {
+    return null
+  }
+
+  return parsed
 }
 
-export default function ConfirmOrderPlaceholderPage() {
+async function readCartItemById(email: string, cartItemId: string): Promise<CartApiItem | null> {
+  const firstPage = await gatewayApi.readCart(email, 1, 20)
+  const firstItems = (firstPage?.items || []) as CartApiItem[]
+  const foundInFirstPage = firstItems.find((entry) => entry.cartItemId === cartItemId)
+
+  if (foundInFirstPage) {
+    return foundInFirstPage
+  }
+
+  const totalPages = Number(firstPage?.totalPages || 1)
+
+  for (let page = 2; page <= totalPages; page += 1) {
+    const pageData = await gatewayApi.readCart(email, page, 20)
+    const pageItems = (pageData?.items || []) as CartApiItem[]
+    const found = pageItems.find((entry) => entry.cartItemId === cartItemId)
+
+    if (found) {
+      return found
+    }
+  }
+
+  return null
+}
+
+export default function ConfirmOrderPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { products } = useStore()
-  const cartItemId = searchParams.get("cartItemId")
-  const productId = searchParams.get("productId")
+  const { isLoggedIn, email } = useAuth()
 
+  const cartItemId = searchParams.get("cartItemId")
+
+  const [cartItem, setCartItem] = useState<CartApiItem | null>(null)
   const [receiver, setReceiver] = useState("")
   const [phone, setPhone] = useState("")
   const [address, setAddress] = useState("")
-  const [paymentMethod, setPaymentMethod] = useState<MockPaymentMethod>("cash")
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash")
+  const [bankName, setBankName] = useState("")
+  const [bankNumber, setBankNumber] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [transferProofFileName, setTransferProofFileName] = useState<string>("")
-  const [transferProofImageDataUrl, setTransferProofImageDataUrl] = useState<string>("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
 
-  const selectedProduct = useMemo(() => {
-    if (!productId) {
-      return undefined
-    }
+  useEffect(() => {
+    const loadCartItem = async () => {
+      if (!email || !cartItemId) {
+        return
+      }
 
-    return products.find((product) => product.id === productId)
-  }, [productId, products])
+      setIsLoading(true)
+      setErrorMessage("")
 
-  const selectedCartItem = useMemo(() => {
-    return readCartItem(cartItemId)
-  }, [cartItemId])
+      try {
+        const result = await readCartItemById(email, cartItemId)
+        setCartItem(result)
 
-  const quantity = selectedCartItem?.quantity ?? 1
-  const unitPrice = selectedProduct?.price ?? 0
-  const totalPrice = unitPrice * quantity
-  const sellerQrUrl = selectedProduct ? buildSellerQrUrl(selectedProduct.shopId, totalPrice) : ""
-
-  const hasRequiredTransferProof = paymentMethod !== "bank-transfer" || Boolean(transferProofFileName)
-  const canSubmit = receiver.trim() && phone.trim() && address.trim() && selectedProduct && hasRequiredTransferProof
-
-  const handleTransferProofChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-
-    if (!file) {
-      setTransferProofFileName("")
-      setTransferProofImageDataUrl("")
-      return
-    }
-
-    setTransferProofFileName(file.name)
-
-    if (!file.type.startsWith("image/")) {
-      setTransferProofImageDataUrl("")
-      return
-    }
-
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result
-      if (typeof result === "string") {
-        setTransferProofImageDataUrl(result)
+        if (!result) {
+          setErrorMessage("Cart item not found.")
+        }
+      } catch (error: any) {
+        setErrorMessage(error?.message || "Unable to load cart item")
+      } finally {
+        setIsLoading(false)
       }
     }
-    reader.readAsDataURL(file)
-  }
 
-  const handleCreateOrder = () => {
-    if (!canSubmit || !selectedProduct) {
+    loadCartItem()
+  }, [email, cartItemId])
+
+  const quantity = Number(cartItem?.productDetail?.quantity || 1)
+  const unitPrice = Number(cartItem?.productDetail?.price || 0)
+  const totalPrice = unitPrice * quantity
+
+  const canSubmit = useMemo(() => {
+    if (!isLoggedIn || !email || !cartItemId || !cartItem) {
+      return false
+    }
+
+    if (!receiver.trim() || !phone.trim() || !address.trim()) {
+      return false
+    }
+
+    if (paymentMethod === "bank-transfer") {
+      return Boolean(bankName.trim() && bankNumber.trim())
+    }
+
+    return true
+  }, [isLoggedIn, email, cartItemId, cartItem, receiver, phone, address, paymentMethod, bankName, bankNumber])
+
+  const handleCreateOrder = async () => {
+    if (!canSubmit || !email || !cartItemId || !cartItem) {
+      return
+    }
+
+    const product = cartItem.productDetail
+    const shop = cartItem.shop
+
+    if (!product?.productId || !shop?.shopId) {
+      setErrorMessage("Missing product or shop information")
       return
     }
 
     setIsSubmitting(true)
+    setErrorMessage("")
 
-    const orderId = createOrderId()
-    const now = new Date().toISOString()
-    const momoStatus = paymentMethod === "momo" ? (Math.random() > 0.5 ? "success" : "pending") : undefined
-    const bankTransferStatus = paymentMethod === "bank-transfer" ? "pending" : undefined
+    try {
+      await gatewayApi.newOrder({
+        product_id: normalizeIdentifierToUuid(product.productId),
+        buyer: email,
+        color: product.selectedOptions?.color ?? null,
+        size: parseSizeToSmallInt(product.selectedOptions?.size),
+        payment: paymentMethod === "cash" ? 0 : 1,
+        bank: paymentMethod === "bank-transfer" ? bankName.trim() : null,
+        bank_number: paymentMethod === "bank-transfer" ? bankNumber.trim() : null,
+        price: Math.round(totalPrice),
+        phone: phone.trim(),
+        address: address.trim(),
+        receiver: receiver.trim(),
+        quantity,
+        seller: shop.shopName || "seller",
+        shop_id: normalizeIdentifierToUuid(shop.shopId),
+      })
 
-    const order: MockOrder = {
-      id: orderId,
-      createdAt: now,
-      updatedAt: now,
-      receiver: receiver.trim(),
-      phone: phone.trim(),
-      address: address.trim(),
-      paymentMethod,
-      momoStatus,
-      bankTransferStatus,
-      transferProofFileName: paymentMethod === "bank-transfer" ? transferProofFileName : undefined,
-      transferProofImageDataUrl: paymentMethod === "bank-transfer" ? transferProofImageDataUrl : undefined,
-      status: "pending",
-      totalPrice,
-      items: [
-        {
-          productId: selectedProduct.id,
-          productName: selectedProduct.name,
-          shopId: selectedProduct.shopId,
-          shopName: selectedProduct.shopName,
-          quantity,
-          unitPrice,
-        },
-      ],
+      await gatewayApi.removeItemFromCart(email, cartItemId)
+      router.push("/orders")
+    } catch (error: any) {
+      setErrorMessage(error?.message || "Unable to create order")
+    } finally {
+      setIsSubmitting(false)
     }
-
-    appendMockOrder(order)
-
-    if (cartItemId) {
-      removeMockCartItem(cartItemId)
-    }
-
-    if (paymentMethod === "momo") {
-      const momoUrl = buildMockMomoUrl(order.id, order.totalPrice)
-      window.open(momoUrl, "_blank", "noopener,noreferrer")
-    }
-
-    router.push("/orders")
   }
 
   return (
@@ -170,10 +206,28 @@ export default function ConfirmOrderPlaceholderPage() {
             <div>
               <h1 className="text-2xl font-bold text-foreground">Confirm Order and Payment</h1>
               <p className="text-muted-foreground mt-1">
-                Fill in receiver information and choose how you want to pay.
+                Fill in receiver information and choose a payment method.
               </p>
             </div>
           </div>
+
+          {errorMessage ? (
+            <Card className="border border-destructive/40 bg-destructive/5 p-3 mb-4">
+              <p className="text-sm text-destructive">{errorMessage}</p>
+            </Card>
+          ) : null}
+
+          {!isLoggedIn ? (
+            <Card className="border border-dashed border-border p-6 text-center mb-4">
+              <p className="text-muted-foreground">Please sign in to create an order.</p>
+            </Card>
+          ) : null}
+
+          {isLoading ? (
+            <Card className="border border-border p-6 text-center mb-4">
+              <p className="text-muted-foreground">Loading cart item...</p>
+            </Card>
+          ) : null}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-4">
@@ -225,52 +279,36 @@ export default function ConfirmOrderPlaceholderPage() {
                     <input
                       type="radio"
                       name="paymentMethod"
-                      value="momo"
-                      checked={paymentMethod === "momo"}
-                      onChange={() => setPaymentMethod("momo")}
-                      className="h-4 w-4"
-                    />
-                    <span className="text-sm text-foreground">MoMo Payment Gateway</span>
-                  </label>
-
-                  <label className="flex items-center gap-3 rounded-md border border-border p-3 cursor-pointer hover:bg-muted/40">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
                       value="bank-transfer"
                       checked={paymentMethod === "bank-transfer"}
                       onChange={() => setPaymentMethod("bank-transfer")}
                       className="h-4 w-4"
                     />
-                    <span className="text-sm text-foreground">Bank Transfer (Scan Seller QR)</span>
+                    <span className="text-sm text-foreground">Bank Transfer</span>
                   </label>
                 </div>
               </div>
 
               {paymentMethod === "bank-transfer" ? (
                 <Card className="p-4 border border-border bg-muted/30">
-                  <h3 className="text-sm font-semibold text-foreground mb-2">Seller QR for Bank Transfer</h3>
-                  <div className="flex flex-col sm:flex-row items-center gap-4">
-                    <img
-                      src={sellerQrUrl}
-                      alt="Seller bank transfer QR"
-                      className="w-44 h-44 rounded-md border border-border bg-white"
-                    />
-                    <div className="text-sm text-foreground">
-                      <p>Shop: <span className="font-medium">{selectedProduct?.shopName ?? "Unknown"}</span></p>
-                      <p>Amount: <span className="font-medium">{formatCurrency(totalPrice)}</span></p>
-                      <p className="text-muted-foreground mt-2">Scan and transfer to seller, then upload transfer proof below.</p>
+                  <h3 className="text-sm font-semibold text-foreground mb-2">Bank Transfer Information</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-foreground">Bank</label>
+                      <Input
+                        value={bankName}
+                        onChange={(event) => setBankName(event.target.value)}
+                        placeholder="e.g. Vietcombank"
+                      />
                     </div>
-                  </div>
-
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium mb-2 text-foreground">Transfer Proof (required)</label>
-                    <Input type="file" accept="image/*,.pdf" onChange={handleTransferProofChange} />
-                    {transferProofFileName ? (
-                      <p className="text-xs text-muted-foreground mt-2">Uploaded: {transferProofFileName}</p>
-                    ) : (
-                      <p className="text-xs text-destructive mt-2">Please upload transfer proof to create order.</p>
-                    )}
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-foreground">Bank Number</label>
+                      <Input
+                        value={bankNumber}
+                        onChange={(event) => setBankNumber(event.target.value)}
+                        placeholder="Bank account or transfer reference"
+                      />
+                    </div>
                   </div>
                 </Card>
               ) : null}
@@ -279,20 +317,20 @@ export default function ConfirmOrderPlaceholderPage() {
             <div className="space-y-4">
               <Card className="p-4 border border-border bg-muted/30">
                 <div className="flex items-start gap-3">
-                  {selectedProduct ? (
+                  {cartItem?.productDetail?.image ? (
                     <img
-                      src={selectedProduct.image}
-                      alt={selectedProduct.name}
+                      src={cartItem.productDetail.image}
+                      alt={cartItem.productDetail.productName || "Product"}
                       className="w-16 h-16 rounded-md object-cover"
                     />
                   ) : null}
 
                   <div className="min-w-0">
                     <p className="font-semibold text-foreground line-clamp-2">
-                      {selectedProduct?.name ?? "Product not found"}
+                      {cartItem?.productDetail?.productName ?? "Product not found"}
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Shop: {selectedProduct?.shopName ?? "Unknown"}
+                      Shop: {cartItem?.shop?.shopName ?? "Unknown"}
                     </p>
                     <p className="text-sm text-muted-foreground">Quantity: {quantity}</p>
                   </div>
@@ -320,7 +358,6 @@ export default function ConfirmOrderPlaceholderPage() {
               <Card className="p-4 border border-border bg-muted/30 text-sm text-foreground">
                 <p><span className="font-medium">Source:</span> Cart page</p>
                 <p><span className="font-medium">Cart Item ID:</span> {cartItemId ?? "N/A"}</p>
-                <p><span className="font-medium">Product ID:</span> {productId ?? "N/A"}</p>
               </Card>
             </div>
           </div>
@@ -339,11 +376,7 @@ export default function ConfirmOrderPlaceholderPage() {
               className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               <ReceiptText className="w-4 h-4" />
-              {paymentMethod === "cash"
-                ? "Create Order"
-                : paymentMethod === "momo"
-                ? "Create Order and Pay with MoMo"
-                : "Create Order with Bank Transfer"}
+              {paymentMethod === "cash" ? "Create Order" : "Create Order with Bank Transfer"}
             </Button>
           </div>
         </Card>
