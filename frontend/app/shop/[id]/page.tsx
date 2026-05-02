@@ -12,6 +12,9 @@ import {
   QrCode,
   Calendar,
   ArrowLeft,
+  ClipboardList,
+  Pencil,
+  Trash2,
 } from "lucide-react"
 import { Header } from "@/components/header"
 import { ProductCard } from "@/components/product-card"
@@ -33,7 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useStore } from "@/lib/store"
+import { useStore, type Product } from "@/lib/store"
 import { PublishProductDialog } from "@/components/publish-product-dialog"
 import { EditShopQRDialog, DeleteShopDialog } from "@/components/edit-shop-dialog"
 
@@ -43,8 +46,9 @@ interface ShopPageProps {
 
 export default function ShopPage({ params }: ShopPageProps) {
   const { id } = use(params)
-  const { getShopById, user, products } = useStore()
+  const { getShopById, user, products, removeProduct } = useStore()
   const [showPublishProduct, setShowPublishProduct] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [showQRCode, setShowQRCode] = useState(false)
   const [showEditQR, setShowEditQR] = useState(false)
   const [showDeleteShop, setShowDeleteShop] = useState(false)
@@ -151,6 +155,15 @@ export default function ShopPage({ params }: ShopPageProps) {
               </div>
               {isOwner && (
                 <div className="flex items-center gap-3">
+                  <Link href={`/shop/${shop.id}/orders`}>
+                    <Button
+                      variant="outline"
+                      className="border-white text-white hover:bg-white/10 bg-transparent"
+                    >
+                      <ClipboardList className="w-4 h-4 mr-2" />
+                      Shop Orders
+                    </Button>
+                  </Link>
                   <Button
                     variant="outline"
                     className="border-white text-white hover:bg-white/10 bg-transparent"
@@ -368,11 +381,63 @@ export default function ShopPage({ params }: ShopPageProps) {
               </div>
 
               {shopProducts.length > 0 ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {shopProducts.map((product) => (
-                    <ProductCard key={product.id} product={product} />
-                  ))}
-                </div>
+                isOwner ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {shopProducts.map((product) => (
+                      <Card key={product.id} className="overflow-hidden">
+                        <Link href={`/products/${product.id}`}>
+                          <div className="aspect-[4/3] overflow-hidden bg-muted">
+                            <img
+                              src={product.image}
+                              alt={product.name}
+                              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                            />
+                          </div>
+                        </Link>
+                        <CardContent className="p-4 space-y-3">
+                          <Link href={`/products/${product.id}`}>
+                            <h3 className="font-semibold text-foreground line-clamp-2 hover:text-[#ee4d2d]">
+                              {product.name}
+                            </h3>
+                          </Link>
+                          <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
+                          <div className="flex items-center justify-between">
+                            <span className="text-lg font-bold text-[#ee4d2d]">
+                              ${product.price.toFixed(2)}
+                            </span>
+                            <span className="text-xs text-muted-foreground">{product.soldCount} sold</span>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-border"
+                              onClick={() => setEditingProduct(product)}
+                            >
+                              <Pencil className="w-4 h-4" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => removeProduct(product.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Remove
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {shopProducts.map((product) => (
+                      <ProductCard key={product.id} product={product} />
+                    ))}
+                  </div>
+                )
               ) : (
                 <Card className="text-center py-12">
                   <CardContent className="pt-6">
@@ -517,6 +582,18 @@ export default function ShopPage({ params }: ShopPageProps) {
         onOpenChange={setShowPublishProduct}
         shopId={id}
         shopName={shop.name}
+      />
+
+      <PublishProductDialog
+        open={Boolean(editingProduct)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingProduct(null)
+          }
+        }}
+        shopId={id}
+        shopName={shop.name}
+        existingProduct={editingProduct}
       />
 
       {/* Edit QR Code Dialog */}
