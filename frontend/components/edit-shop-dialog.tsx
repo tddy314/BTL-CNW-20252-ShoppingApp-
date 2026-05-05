@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
 import { useStore } from '@/lib/store'
+import { useAuth } from '@/contexts/auth-context'
+import { ApiGateway } from '@/app/utils/api'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,50 +24,57 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Upload } from 'lucide-react'
+import { Building2, CreditCard } from 'lucide-react'
 
-interface EditShopQRDialogProps {
+const api = new ApiGateway()
+
+interface EditShopBankDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   shopId: string
+  currentBankAccount?: string
+  currentBankAccountNumber?: string
 }
 
-export function EditShopQRDialog({
+export function EditShopBankDialog({
   open,
   onOpenChange,
   shopId,
-}: EditShopQRDialogProps) {
-  const { shops } = useStore()
-  const shop = shops.find((s) => s.id === shopId)
-  const [previewUrl, setPreviewUrl] = useState(shop?.bankingQR || '')
+  currentBankAccount = '',
+  currentBankAccountNumber = '',
+}: EditShopBankDialogProps) {
+  const { email } = useAuth()
+  const [bankAccount, setBankAccount] = useState(currentBankAccount)
+  const [bankAccountNumber, setBankAccountNumber] = useState(currentBankAccountNumber)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  if (!shop) return null
+  const handleSave = async () => {
+    if (!bankAccount.trim() && !bankAccountNumber.trim()) return
+    if (!email) return
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setPreviewUrl(reader.result as string)
-      }
-      reader.readAsDataURL(file)
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      await api.updateShopBankInfo({
+        shop_id: Number(shopId),
+        owner: email,
+        shop_bank_account: bankAccount.trim() || undefined,
+        shop_bank_account_number: bankAccountNumber.trim() || undefined,
+      })
+      onOpenChange(false)
+    } catch (err: any) {
+      setError(err.message || 'Failed to update bank info')
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const handleSave = async () => {
-    if (!previewUrl) return
-    setIsLoading(true)
-    
-    // Simulate saving - in real app, would update shop in store
-    setTimeout(() => {
-      setIsLoading(false)
-      onOpenChange(false)
-    }, 500)
-  }
-
   const handleClose = () => {
-    setPreviewUrl(shop?.bankingQR || '')
+    setBankAccount(currentBankAccount)
+    setBankAccountNumber(currentBankAccountNumber)
+    setError(null)
     onOpenChange(false)
   }
 
@@ -74,42 +82,44 @@ export function EditShopQRDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Update Banking QR Code</DialogTitle>
+          <DialogTitle>Update Bank Information</DialogTitle>
           <DialogDescription>
-            Upload a new banking QR code for your shop
+            Update your shop&apos;s bank account details for receiving payments.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* QR Preview */}
-          <div className="flex justify-center">
-            <div className="relative">
-              {previewUrl && (
-                <Image
-                  src={previewUrl}
-                  alt="Banking QR"
-                  width={160}
-                  height={160}
-                  className="w-40 h-40 border-2 border-[#ee4d2d] rounded-lg object-cover"
-                />
-              )}
-              <label htmlFor="qr-upload" className="absolute bottom-0 right-0 p-2 bg-[#00bfa5] rounded-lg cursor-pointer hover:bg-[#00a896] transition-colors flex items-center justify-center">
-                <Upload className="w-4 h-4 text-white" />
-              </label>
-              <input
-                id="qr-upload"
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="hidden"
-              />
-            </div>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label htmlFor="editBankAccount" className="flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5" />
+              Bank Name
+            </Label>
+            <Input
+              id="editBankAccount"
+              placeholder="e.g. Vietcombank, MB Bank, Techcombank"
+              value={bankAccount}
+              onChange={(e) => setBankAccount(e.target.value)}
+            />
           </div>
 
-          {/* Upload Info */}
-          <div className="text-center text-sm text-muted-foreground">
-            Click the upload icon to change the QR code
+          <div className="space-y-2">
+            <Label htmlFor="editBankAccountNumber" className="flex items-center gap-1.5">
+              <CreditCard className="w-3.5 h-3.5" />
+              Bank Account Number
+            </Label>
+            <Input
+              id="editBankAccountNumber"
+              placeholder="Enter your bank account number"
+              value={bankAccountNumber}
+              onChange={(e) => setBankAccountNumber(e.target.value)}
+            />
           </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
         </div>
 
         <DialogFooter className="gap-2">
@@ -123,7 +133,7 @@ export function EditShopQRDialog({
           <Button
             className="bg-[#ee4d2d] hover:bg-[#d73211] text-white"
             onClick={handleSave}
-            disabled={isLoading || !previewUrl}
+            disabled={isLoading || (!bankAccount.trim() && !bankAccountNumber.trim())}
           >
             {isLoading ? 'Saving...' : 'Save'}
           </Button>
@@ -148,17 +158,28 @@ export function DeleteShopDialog({
   shopName,
   onDelete,
 }: DeleteShopDialogProps) {
+  const { email } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleDelete = async () => {
+    if (!email) return
+
     setIsLoading(true)
-    
-    // Simulate deletion
-    setTimeout(() => {
-      setIsLoading(false)
+    setError(null)
+
+    try {
+      await api.deleteShop({
+        shop_id: Number(shopId),
+        owner: email,
+      })
       onDelete()
       onOpenChange(false)
-    }, 500)
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete shop')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -174,6 +195,11 @@ export function DeleteShopDialog({
         <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm text-orange-800">
           <span className="font-semibold">Warning:</span> This will permanently delete your shop and all its data.
         </div>
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
         <div className="flex gap-2 justify-end">
           <AlertDialogCancel disabled={isLoading}>
             Cancel

@@ -1,8 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Upload, Store } from "lucide-react"
+import { Store, Building2, CreditCard } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -14,57 +13,48 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useStore } from "@/lib/store"
+
+import { useAuth } from "@/contexts/auth-context"
+import { ApiGateway } from "@/app/utils/api"
 
 interface CreateShopDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-export function CreateShopDialog({ open, onOpenChange }: CreateShopDialogProps) {
-  const router = useRouter()
-  const { user, addShop } = useStore()
-  const [shopName, setShopName] = useState("")
-  const [bankingQR, setBankingQR] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+const api = new ApiGateway()
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setBankingQR(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
+export function CreateShopDialog({ open, onOpenChange }: CreateShopDialogProps) {
+  const { email } = useAuth()
+  const [shopName, setShopName] = useState("")
+  const [bankAccount, setBankAccount] = useState("")
+  const [bankAccountNumber, setBankAccountNumber] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async () => {
-    if (!shopName.trim() || !bankingQR || !user) return
+    if (!shopName.trim() || !bankAccount.trim() || !bankAccountNumber.trim() || !email) return
 
     setIsSubmitting(true)
+    setError(null)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      await api.createShop({
+        owner: email,
+        shop_name: shopName.trim(),
+        shop_bank_account: bankAccount.trim(),
+        shop_bank_account_number: bankAccountNumber.trim(),
+      })
 
-    const newShop = {
-      id: `shop-${Date.now()}`,
-      name: shopName,
-      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(shopName)}&background=ee4d2d&color=fff`,
-      bankingQR: bankingQR,
-      ownerId: user.id,
-      createdAt: new Date(),
-      products: [],
-      totalEarnings: 0,
-      totalSold: 0,
+      setShopName("")
+      setBankAccount("")
+      setBankAccountNumber("")
+      onOpenChange(false)
+    } catch (err: any) {
+      setError(err.message || "Failed to create shop")
+    } finally {
+      setIsSubmitting(false)
     }
-
-    addShop(newShop)
-    setShopName("")
-    setBankingQR(null)
-    setIsSubmitting(false)
-    onOpenChange(false)
-    router.push("/my-shops")
   }
 
   return (
@@ -92,46 +82,39 @@ export function CreateShopDialog({ open, onOpenChange }: CreateShopDialogProps) 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="bankingQR">Banking QR Code</Label>
-            <div className="border-2 border-dashed rounded-lg p-6 text-center">
-              {bankingQR ? (
-                <div className="space-y-2">
-                  <img
-                    src={bankingQR}
-                    alt="Banking QR"
-                    className="w-32 h-32 mx-auto object-contain"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setBankingQR(null)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ) : (
-                <label
-                  htmlFor="qrUpload"
-                  className="cursor-pointer flex flex-col items-center gap-2"
-                >
-                  <Upload className="w-8 h-8 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    Click to upload QR code
-                  </span>
-                  <input
-                    id="qrUpload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
-                </label>
-              )}
-            </div>
+            <Label htmlFor="bankAccount" className="flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5" />
+              Bank Name
+            </Label>
+            <Input
+              id="bankAccount"
+              placeholder="e.g. Vietcombank, MB Bank, Techcombank"
+              value={bankAccount}
+              onChange={(e) => setBankAccount(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="bankAccountNumber" className="flex items-center gap-1.5">
+              <CreditCard className="w-3.5 h-3.5" />
+              Bank Account Number
+            </Label>
+            <Input
+              id="bankAccountNumber"
+              placeholder="Enter your bank account number"
+              value={bankAccountNumber}
+              onChange={(e) => setBankAccountNumber(e.target.value)}
+            />
             <p className="text-xs text-muted-foreground">
-              Upload your banking QR code for receiving payments
+              Your bank info will be used for receiving payments from orders.
             </p>
           </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
         </div>
 
         <DialogFooter>
@@ -140,7 +123,7 @@ export function CreateShopDialog({ open, onOpenChange }: CreateShopDialogProps) 
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!shopName.trim() || !bankingQR || isSubmitting}
+            disabled={!shopName.trim() || !bankAccount.trim() || !bankAccountNumber.trim() || isSubmitting}
             className="bg-[#ee4d2d] hover:bg-[#d73211] text-white"
           >
             {isSubmitting ? "Creating..." : "Create Shop"}
