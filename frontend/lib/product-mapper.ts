@@ -33,6 +33,7 @@ function normalizeProductImageLink(rawLink: string | null): string | null {
 
 export function mapApiProductToStoreProduct(item: ProductRecord): Product {
   const normalizedImage = normalizeProductImageLink(item.product_img_link);
+  const normalizedShopImage = normalizeProductImageLink(item.shop_img || null);
 
   return {
     id: item.product_id,
@@ -41,7 +42,8 @@ export function mapApiProductToStoreProduct(item: ProductRecord): Product {
     image: normalizedImage || FALLBACK_PRODUCT_IMAGE,
     category: item.category,
     shopId: item.shop_id,
-    shopName: item.shop_owner,
+    shopName: item.shop_name || item.shop_owner,
+    shopAvatar: normalizedShopImage || undefined,
     description: item.description || "",
     soldCount: Number(item.sold_count || 0),
     createdAt: new Date(item.created_at),

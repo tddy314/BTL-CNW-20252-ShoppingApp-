@@ -1,6 +1,7 @@
 import { supabaseAdmin, supabaseUsers } from "../config/database/supabase.config.js";
 
 const PRODUCT_TABLE = "products";
+const SHOP_TABLE = "shop";
 
 function parseNumber(value) {
   const parsed = Number(value);
@@ -25,6 +26,8 @@ function mapRowToProduct(row) {
     product_id: row.product_id,
     shop_id: row.shop_id,
     shop_owner: row.shop_owner,
+    shop_name: row.shop_name || row.shop_owner,
+    shop_img: row.shop_img || null,
     product_img_link: row.product_img_link,
     category: row.catagory,
     price: parseNumber(row.price),
@@ -40,6 +43,63 @@ function mapRowToProduct(row) {
     materials: parseCsv(row.material_list),
     sold_count: Number(row.sold_count || 0),
   };
+}
+
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function hash32(input, seed) {
+  let hash = seed >>> 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
+}
+
+function normalizeIdentifierToUuid(value) {
+  const normalized = String(value).trim().toLowerCase();
+  if (isUuid(normalized)) {
+    return normalized;
+  }
+  const h1 = hash32(normalized, 0x811c9dc5);
+  const h2 = hash32(normalized + "-a", 0x01000193);
+  const h3 = hash32(normalized + "-b", 0x9e3779b1);
+  const h4 = hash32(normalized + "-c", 0x85ebca6b);
+  const hex = `${h1}${h2}${h3}${h4}`.slice(0, 32);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
+async function buildShopMetaMapByOwner(rows) {
+  const owners = [...new Set(rows.map((row) => row.shop_owner).filter(Boolean))];
+  const entries = await Promise.all(
+    owners.map(async (owner) => {
+      const { data, error } = await supabaseUsers
+        .from(SHOP_TABLE)
+        .select("id,shop_name,shop_img,owner")
+        .eq("owner", owner);
+      if (error || !data) {
+        return [];
+      }
+      return data.map((shop) => ({
+        key: `${owner}:${normalizeIdentifierToUuid(String(shop.id))}`,
+        shop_name: shop.shop_name,
+        shop_img: shop.shop_img || null,
+      }));
+    })
+  );
+
+  const map = new Map();
+  for (const ownerEntries of entries) {
+    for (const entry of ownerEntries) {
+      map.set(entry.key, {
+        shop_name: entry.shop_name,
+        shop_img: entry.shop_img,
+      });
+    }
+  }
+  return map;
 }
 
 function buildPageResult({ items, count, page, limit }) {
@@ -98,7 +158,13 @@ export class ProductRepository {
       throw new Error(error.message);
     }
 
-    return mapRowToProduct(data);
+    const shopMetaMap = await buildShopMetaMapByOwner([data]);
+    const shopMeta = shopMetaMap.get(`${data.shop_owner}:${data.shop_id}`);
+    return mapRowToProduct({
+      ...data,
+      shop_name: shopMeta?.shop_name || data.shop_owner,
+      shop_img: shopMeta?.shop_img || null,
+    });
   }
 
   async updateProduct(payload) {
@@ -157,7 +223,13 @@ export class ProductRepository {
       throw new Error(error?.message || "Unable to update product");
     }
 
-    return mapRowToProduct(data);
+    const shopMetaMap = await buildShopMetaMapByOwner([data]);
+    const shopMeta = shopMetaMap.get(`${data.shop_owner}:${data.shop_id}`);
+    return mapRowToProduct({
+      ...data,
+      shop_name: shopMeta?.shop_name || data.shop_owner,
+      shop_img: shopMeta?.shop_img || null,
+    });
   }
 
   async deleteProduct({ product_id, shop_owner }) {
@@ -177,7 +249,13 @@ export class ProductRepository {
       throw new Error(error?.message || "Product not found or not owned by this user");
     }
 
-    return mapRowToProduct(data);
+    const shopMetaMap = await buildShopMetaMapByOwner([data]);
+    const shopMeta = shopMetaMap.get(`${data.shop_owner}:${data.shop_id}`);
+    return mapRowToProduct({
+      ...data,
+      shop_name: shopMeta?.shop_name || data.shop_owner,
+      shop_img: shopMeta?.shop_img || null,
+    });
   }
 
   async getProductById({ product_id }) {
@@ -185,17 +263,43 @@ export class ProductRepository {
       throw new Error("product_id is required");
     }
 
-    const { data, error } = await supabaseUsers
-      .from(PRODUCT_TABLE)
-      .select("*")
-      .eq("product_id", product_id)
-      .single();
+    const normalized = String(product_id).trim();
+    const isNumericId = /^[0-9]+$/.test(normalized);
 
-    if (error || !data) {
-      throw new Error(error?.message || "Product not found");
+    let data = null;
+    let error = null;
+
+    if (isNumericId) {
+      const numericResult = await supabaseUsers
+        .from(PRODUCT_TABLE)
+        .select("*")
+        .eq("id", Number(normalized))
+        .single();
+
+      data = numericResult.data;
+      error = numericResult.error;
+    } else {
+      const uuidResult = await supabaseUsers
+        .from(PRODUCT_TABLE)
+        .select("*")
+        .eq("product_id", normalized)
+        .single();
+
+      data = uuidResult.data;
+      error = uuidResult.error;
     }
 
-    return mapRowToProduct(data);
+    if (error || !data) {
+      throw new Error("Product not found");
+    }
+
+    const shopMetaMap = await buildShopMetaMapByOwner([data]);
+    const shopMeta = shopMetaMap.get(`${data.shop_owner}:${data.shop_id}`);
+    return mapRowToProduct({
+      ...data,
+      shop_name: shopMeta?.shop_name || data.shop_owner,
+      shop_img: shopMeta?.shop_img || null,
+    });
   }
 
   async searchProducts({
@@ -245,18 +349,28 @@ export class ProductRepository {
       throw new Error(error.message);
     }
 
-    let items = (data || []).map(mapRowToProduct);
+    let items = data || [];
     if (min_price !== undefined) {
       const parsedMinPrice = parseNumber(min_price);
-      items = items.filter((item) => item.price >= parsedMinPrice);
+      items = items.filter((item) => parseNumber(item.price) >= parsedMinPrice);
     }
     if (max_price !== undefined) {
       const parsedMaxPrice = parseNumber(max_price);
-      items = items.filter((item) => item.price <= parsedMaxPrice);
+      items = items.filter((item) => parseNumber(item.price) <= parsedMaxPrice);
     }
 
+    const shopMetaMap = await buildShopMetaMapByOwner(items);
+    const itemsWithShopMeta = items.map((item) => {
+      const shopMeta = shopMetaMap.get(`${item.shop_owner}:${item.shop_id}`);
+      return mapRowToProduct({
+      ...item,
+      shop_name: shopMeta?.shop_name || item.shop_owner,
+      shop_img: shopMeta?.shop_img || null,
+    });
+    });
+
     return buildPageResult({
-      items,
+      items: itemsWithShopMeta,
       count,
       page: normalizedPage,
       limit: normalizedLimit,

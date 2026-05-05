@@ -20,6 +20,7 @@ interface ShopRecord {
   shop_name: string
   shop_bank_account: string
   shop_bank_account_number: string
+  shop_img?: string | null
 }
 
 export default function MyShopsPage() {
@@ -138,7 +139,7 @@ export default function MyShopsPage() {
                     <div className="flex items-center gap-4">
                       <Avatar className="w-16 h-16">
                         <AvatarImage
-                          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(shop.shop_name)}&background=ee4d2d&color=fff`}
+                          src={shop.shop_img || `https://ui-avatars.com/api/?name=${encodeURIComponent(shop.shop_name)}&background=ee4d2d&color=fff`}
                           alt={shop.shop_name}
                         />
                         <AvatarFallback className="bg-[#ee4d2d] text-white text-xl">

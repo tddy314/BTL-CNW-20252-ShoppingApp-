@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { useStore } from '@/lib/store'
+import { useAuth } from '@/contexts/auth-context'
+import { ApiGateway } from '@/app/utils/api'
 import {
   Dialog,
   DialogContent,
@@ -14,68 +15,75 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Camera, X } from 'lucide-react'
+import { Link as LinkIcon } from 'lucide-react'
 
 interface EditProfileDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   type: 'avatar' | 'name'
+  currentName?: string
+  currentAvatar?: string
+  onSaved?: (updated: { name?: string; avatar?: string }) => void
 }
 
 export function EditProfileDialog({
   open,
   onOpenChange,
   type,
+  currentName = '',
+  currentAvatar = '',
+  onSaved,
 }: EditProfileDialogProps) {
-  const { user, setUser } = useStore()
-  const [newName, setNewName] = useState(user?.name || '')
-  const [previewUrl, setPreviewUrl] = useState(user?.avatar || '')
+  const { email } = useAuth()
+  const api = new ApiGateway()
+  const [newName, setNewName] = useState(currentName || '')
+  const [previewUrl, setPreviewUrl] = useState(currentAvatar || '')
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setPreviewUrl(reader.result as string)
-      }
-      reader.readAsDataURL(file)
+  useEffect(() => {
+    if (open) {
+      setNewName(currentName || '')
+      setPreviewUrl(currentAvatar || '')
+    }
+  }, [open, currentName, currentAvatar])
+
+  const handleSaveAvatar = async () => {
+    if (!email) return
+    setIsLoading(true)
+
+    try {
+      await api.updateProfile({
+        email,
+        profile_img: previewUrl || null,
+      })
+      onSaved?.({ avatar: previewUrl || '' })
+      setIsLoading(false)
+      onOpenChange(false)
+    } catch {
+      setIsLoading(false)
     }
   }
 
-  const handleSaveAvatar = async () => {
-    if (!user || !previewUrl) return
-    setIsLoading(true)
-    
-    // Simulate saving
-    setTimeout(() => {
-      setUser({
-        ...user,
-        avatar: previewUrl,
-      })
-      setIsLoading(false)
-      onOpenChange(false)
-    }, 500)
-  }
-
   const handleSaveName = async () => {
-    if (!user || !newName.trim()) return
+    if (!email || !newName.trim()) return
     setIsLoading(true)
-    
-    // Simulate saving
-    setTimeout(() => {
-      setUser({
-        ...user,
+
+    try {
+      await api.updateProfile({
+        email,
         name: newName.trim(),
       })
+      onSaved?.({ name: newName.trim() })
       setIsLoading(false)
       onOpenChange(false)
-    }, 500)
+    } catch {
+      setIsLoading(false)
+    }
   }
 
   const handleClose = () => {
-    setNewName(user?.name || '')
-    setPreviewUrl(user?.avatar || '')
+    setNewName(currentName || '')
+    setPreviewUrl(currentAvatar || '')
     onOpenChange(false)
   }
 
@@ -88,39 +96,37 @@ export function EditProfileDialog({
           </DialogTitle>
           <DialogDescription>
             {type === 'avatar'
-              ? 'Upload a new profile picture'
+              ? 'Set your profile picture link'
               : 'Change your display name'}
           </DialogDescription>
         </DialogHeader>
 
         {type === 'avatar' ? (
           <div className="space-y-6">
-            {/* Avatar Preview */}
             <div className="flex justify-center">
-              <div className="relative">
+              <div className="relative space-y-4 w-full">
                 <Image
-                  src={previewUrl}
+                  src={previewUrl || '/placeholder-user.jpg'}
                   alt="Preview"
                   width={120}
                   height={120}
                   className="w-32 h-32 rounded-full object-cover border-4 border-[#ee4d2d]"
                 />
-                <label htmlFor="avatar-upload" className="absolute bottom-0 right-0 p-2 bg-[#00bfa5] rounded-full cursor-pointer hover:bg-[#00a896] transition-colors">
-                  <Camera className="w-4 h-4 text-white" />
-                </label>
-                <input
-                  id="avatar-upload"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
+                <div>
+                  <Label htmlFor="avatar-link" className="text-base">Avatar Link</Label>
+                  <div className="relative mt-2">
+                    <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="avatar-link"
+                      type="url"
+                      value={previewUrl}
+                      onChange={(e) => setPreviewUrl(e.target.value)}
+                      placeholder="https://example.com/avatar.jpg"
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
-
-            {/* Upload Info */}
-            <div className="text-center text-sm text-muted-foreground">
-              Click the camera icon to upload a new image
             </div>
           </div>
         ) : (

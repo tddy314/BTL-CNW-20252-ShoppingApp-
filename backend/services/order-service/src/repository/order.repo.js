@@ -2,6 +2,60 @@ import { supabaseUsers, supabaseAdmin } from "../config/database/supabase.config
 
 const ORDER_TABLE = "order";
 const PRODUCT_TABLE = "products";
+const SHOP_TABLE = "shop";
+
+function isUuid(value) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function hash32(input, seed) {
+    let hash = seed >>> 0;
+    for (let i = 0; i < input.length; i += 1) {
+        hash ^= input.charCodeAt(i);
+        hash = Math.imul(hash, 16777619) >>> 0;
+    }
+    return hash.toString(16).padStart(8, "0");
+}
+
+function normalizeIdentifierToUuid(value) {
+    const normalized = String(value).trim().toLowerCase();
+    if (isUuid(normalized)) {
+        return normalized;
+    }
+
+    const h1 = hash32(normalized, 0x811c9dc5);
+    const h2 = hash32(normalized + "-a", 0x01000193);
+    const h3 = hash32(normalized + "-b", 0x9e3779b1);
+    const h4 = hash32(normalized + "-c", 0x85ebca6b);
+    const hex = `${h1}${h2}${h3}${h4}`.slice(0, 32);
+
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
+async function resolveSellerShopName(productId, shopId, fallbackSeller) {
+    const { data: product, error: productError } = await supabaseUsers
+        .from(PRODUCT_TABLE)
+        .select("shop_owner,shop_id")
+        .eq("product_id", productId)
+        .single();
+
+    if (productError || !product?.shop_owner) {
+        return fallbackSeller;
+    }
+
+    const targetShopId = String(shopId || product.shop_id || "").trim();
+    const { data: shops, error: shopError } = await supabaseUsers
+        .from(SHOP_TABLE)
+        .select("id,shop_name")
+        .eq("owner", product.shop_owner);
+
+    if (shopError || !Array.isArray(shops) || shops.length === 0) {
+        return fallbackSeller;
+    }
+
+    const matched = shops.find((shop) => normalizeIdentifierToUuid(String(shop.id)) === targetShopId);
+    return matched?.shop_name || fallbackSeller;
+}
 
 function isValidPayment(payment) {
     return payment === 0 || payment === 1;
@@ -103,6 +157,8 @@ export class OrderRepository {
 
         assertPaymentRules(payment, bank, bank_number);
 
+        const resolvedSeller = await resolveSellerShopName(product_id, shop_id, seller);
+
         const payload = {
             product_id,
             buyer,
@@ -117,7 +173,7 @@ export class OrderRepository {
             address,
             receiver,
             quantity,
-            seller,
+            seller: resolvedSeller,
             shop_id,
         };
 

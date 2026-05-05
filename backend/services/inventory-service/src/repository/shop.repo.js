@@ -1,6 +1,7 @@
 import { supabaseUsers, supabaseAdmin } from "../config/database/supabase.config.js";
 
 const SHOP_TABLE = "shop";
+const PROFILE_TABLE = "profile";
 
 function assertData(data, error) {
     if (error) {
@@ -114,6 +115,52 @@ export class ShopRepository {
         return data;
     }
 
+    async updateShopInfo({
+        shop_id,
+        owner,
+        shop_name,
+        shop_img,
+    }) {
+        if (!shop_id || !owner) {
+            throw new Error("shop_id and owner are required");
+        }
+
+        if (shop_name === undefined && shop_img === undefined) {
+            throw new Error("At least one field must be provided: shop_name, shop_img");
+        }
+
+        const { data: existingShop, error: findError } = await supabaseUsers
+            .from(SHOP_TABLE)
+            .select("id, owner")
+            .eq("id", shop_id)
+            .single();
+
+        assertData(existingShop, findError);
+
+        if (existingShop.owner !== owner) {
+            throw new Error("Only the shop owner can update this shop");
+        }
+
+        const updates = {};
+        if (shop_name !== undefined) {
+            updates.shop_name = String(shop_name).trim();
+        }
+        if (shop_img !== undefined) {
+            updates.shop_img = shop_img || null;
+        }
+
+        const { data, error } = await supabaseAdmin
+            .from(SHOP_TABLE)
+            .update(updates)
+            .eq("id", shop_id)
+            .eq("owner", owner)
+            .select()
+            .single();
+
+        assertData(data, error);
+        return data;
+    }
+
     async getShopsByOwner({ owner, page, limit }) {
         if (!owner) {
             throw new Error("owner is required");
@@ -156,6 +203,73 @@ export class ShopRepository {
             .from(SHOP_TABLE)
             .select("*")
             .eq("id", shop_id)
+            .single();
+
+        assertData(data, error);
+        return data;
+    }
+
+    async createProfile({ email, name, profile_img = null }) {
+        if (!email) {
+            throw new Error("email is required");
+        }
+
+        const profileName = (name || email).trim();
+
+        const { data, error } = await supabaseAdmin
+            .from(PROFILE_TABLE)
+            .upsert(
+                {
+                    email,
+                    name: profileName,
+                    profile_img: profile_img || null,
+                },
+                { onConflict: "email" }
+            )
+            .select("*")
+            .single();
+
+        assertData(data, error);
+        return data;
+    }
+
+    async getProfile({ email }) {
+        if (!email) {
+            throw new Error("email is required");
+        }
+
+        const { data, error } = await supabaseUsers
+            .from(PROFILE_TABLE)
+            .select("*")
+            .eq("email", email)
+            .single();
+
+        assertData(data, error);
+        return data;
+    }
+
+    async updateProfile({ email, name, profile_img }) {
+        if (!email) {
+            throw new Error("email is required");
+        }
+
+        if (name === undefined && profile_img === undefined) {
+            throw new Error("at least one field must be provided: name, profile_img");
+        }
+
+        const updates = {};
+        if (name !== undefined) {
+            updates.name = String(name).trim();
+        }
+        if (profile_img !== undefined) {
+            updates.profile_img = profile_img || null;
+        }
+
+        const { data, error } = await supabaseAdmin
+            .from(PROFILE_TABLE)
+            .update(updates)
+            .eq("email", email)
+            .select("*")
             .single();
 
         assertData(data, error);
