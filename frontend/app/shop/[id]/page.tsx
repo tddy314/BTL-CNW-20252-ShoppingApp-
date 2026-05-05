@@ -50,7 +50,6 @@ interface ShopPageProps {
 
 interface ApiShopRecord {
   id: number
-  
   created_at: string
   owner: string
   shop_name: string
