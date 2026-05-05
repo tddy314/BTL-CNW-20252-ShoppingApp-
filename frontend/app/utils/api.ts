@@ -278,4 +278,66 @@ export class ApiGateway {
             throw new Error(error?.response?.data?.message || "Failed to read orders");
         }
     }
+
+    // ========== SHOP / INVENTORY SERVICE ==========
+
+    async createShop(payload: {
+        owner: string;
+        shop_name: string;
+        shop_bank_account: string;
+        shop_bank_account_number: string;
+    }) {
+        try {
+            const res = await axios.post(`${GATEWAY_BASE_URL}/api-gate/inventory-service/create-shop`, payload);
+            return res.data?.result;
+        }
+        catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to create shop");
+        }
+    }
+
+    async deleteShop(payload: { shop_id: number; owner: string; }) {
+        try {
+            const res = await axios.post(`${GATEWAY_BASE_URL}/api-gate/inventory-service/delete-shop`, payload);
+            return res.data?.result;
+        }
+        catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to delete shop");
+        }
+    }
+
+    async updateShopBankInfo(payload: {
+        shop_id: number;
+        owner: string;
+        shop_bank_account?: string;
+        shop_bank_account_number?: string;
+    }) {
+        try {
+            const res = await axios.patch(`${GATEWAY_BASE_URL}/api-gate/inventory-service/update-shop-bank-info`, payload);
+            return res.data?.result;
+        }
+        catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to update shop bank info");
+        }
+    }
+
+    async getShopsByOwner(payload: { owner: string; page: number; limit: number; }) {
+        try {
+            const res = await axios.post(`${GATEWAY_BASE_URL}/api-gate/inventory-service/get-shops-by-owner`, payload);
+            return res.data?.result;
+        }
+        catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to get shops");
+        }
+    }
+
+    async getShopById(payload: { shop_id: number; }) {
+        try {
+            const res = await axios.post(`${GATEWAY_BASE_URL}/api-gate/inventory-service/get-shop-by-id`, payload);
+            return res.data?.result;
+        }
+        catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to get shop");
+        }
+    }
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useState } from "react"
+import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import {
   ChevronRight,
@@ -9,7 +9,8 @@ import {
   DollarSign,
   TrendingUp,
   ShoppingBag,
-  QrCode,
+  Building2,
+  CreditCard,
   Calendar,
   ArrowLeft,
   ClipboardList,
@@ -38,24 +39,96 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useStore, type Product } from "@/lib/store"
 import { PublishProductDialog } from "@/components/publish-product-dialog"
-import { EditShopQRDialog, DeleteShopDialog } from "@/components/edit-shop-dialog"
+import { EditShopBankDialog, DeleteShopDialog } from "@/components/edit-shop-dialog"
+import { useRouter } from "next/navigation"
+import { ApiGateway } from "@/app/utils/api"
+import { useAuth } from "@/contexts/auth-context"
 
 interface ShopPageProps {
   params: Promise<{ id: string }>
 }
 
+interface ApiShopRecord {
+  id: number
+  created_at: string
+  owner: string
+  shop_name: string
+  shop_bank_account: string
+  shop_bank_account_number: string
+}
+
+const api = new ApiGateway()
+
 export default function ShopPage({ params }: ShopPageProps) {
   const { id } = use(params)
   const { getShopById, user, products, removeProduct } = useStore()
+  const { email } = useAuth()
   const [showPublishProduct, setShowPublishProduct] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
-  const [showQRCode, setShowQRCode] = useState(false)
-  const [showEditQR, setShowEditQR] = useState(false)
+  const [showBankInfo, setShowBankInfo] = useState(false)
+  const [showEditBank, setShowEditBank] = useState(false)
   const [showDeleteShop, setShowDeleteShop] = useState(false)
+  const [apiShop, setApiShop] = useState<ApiShopRecord | null>(null)
+  const [isShopLoading, setIsShopLoading] = useState(true)
+  const [shopError, setShopError] = useState<string | null>(null)
+  const router = useRouter()
 
-  const shop = getShopById(id)
-  console.log("Shop id: " + id);
-  console.log(shop);
+  const storeShop = getShopById(id)
+
+  useEffect(() => {
+    let isActive = true
+
+    const fetchShop = async () => {
+      const shopId = Number(id)
+      if (!Number.isFinite(shopId)) {
+        if (isActive) {
+          setShopError("Invalid shop id")
+          setIsShopLoading(false)
+        }
+        return
+      }
+
+      setIsShopLoading(true)
+      setShopError(null)
+
+      try {
+        const result = await api.getShopById({ shop_id: shopId })
+        if (isActive) {
+          setApiShop(result || null)
+        }
+      } catch (err: any) {
+        if (isActive) {
+          setShopError(err?.message || "Failed to load shop")
+        }
+      } finally {
+        if (isActive) {
+          setIsShopLoading(false)
+        }
+      }
+    }
+
+    fetchShop()
+
+    return () => {
+      isActive = false
+    }
+  }, [id])
+
+  const shop = apiShop
+    ? {
+        id: String(apiShop.id),
+        name: apiShop.shop_name,
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(apiShop.shop_name)}&background=ee4d2d&color=fff`,
+        ownerId: apiShop.owner,
+        createdAt: new Date(apiShop.created_at),
+        products: [],
+        totalEarnings: 0,
+        totalSold: 0,
+        bankingQR: "",
+        shop_bank_account: apiShop.shop_bank_account,
+        shop_bank_account_number: apiShop.shop_bank_account_number,
+      }
+    : storeShop
 
   // Get products for this shop
   const shopProducts = products.filter((p) => p.shopId === id)
@@ -71,12 +144,23 @@ export default function ShopPage({ params }: ShopPageProps) {
       ? shopProducts.reduce((acc, p) => acc + p.price, 0) / shopProducts.length
       : 0
 
-  if (!shop) {
+  if (isShopLoading) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
         <main className="container mx-auto px-4 py-12 text-center">
-          <h1 className="text-2xl font-bold">Shop not found</h1>
+          <h1 className="text-2xl font-bold">Loading shop...</h1>
+        </main>
+      </div>
+    )
+  }
+
+  if (shopError || !shop) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-12 text-center">
+          <h1 className="text-2xl font-bold">{shopError || "Shop not found"}</h1>
           <Link
             href="/my-shops"
             className="text-[#ee4d2d] hover:underline mt-4 inline-block"
@@ -88,7 +172,7 @@ export default function ShopPage({ params }: ShopPageProps) {
     )
   }
 
-  const isOwner = user?.id === shop.ownerId
+  const isOwner = email ? email === shop.ownerId : user?.id === shop.ownerId
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -167,17 +251,17 @@ export default function ShopPage({ params }: ShopPageProps) {
                   <Button
                     variant="outline"
                     className="border-white text-white hover:bg-white/10 bg-transparent"
-                    onClick={() => setShowQRCode(true)}
+                    onClick={() => setShowBankInfo(true)}
                   >
-                    <QrCode className="w-4 h-4 mr-2" />
-                    View QR Code
+                    <Building2 className="w-4 h-4 mr-2" />
+                    Bank Info
                   </Button>
                   <Button
                     variant="outline"
                     className="border-white text-white hover:bg-white/10 bg-transparent text-sm"
-                    onClick={() => setShowEditQR(true)}
+                    onClick={() => setShowEditBank(true)}
                   >
-                    Edit QR
+                    Edit Bank
                   </Button>
                   <Button
                     className="bg-white text-[#ee4d2d] hover:bg-white/90"
@@ -556,22 +640,27 @@ export default function ShopPage({ params }: ShopPageProps) {
         </div>
       </main>
 
-      {/* QR Code Dialog */}
-      <Dialog open={showQRCode} onOpenChange={setShowQRCode}>
+      {/* Bank Info Dialog */}
+      <Dialog open={showBankInfo} onOpenChange={setShowBankInfo}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Banking QR Code</DialogTitle>
+            <DialogTitle>Bank Information</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col items-center py-4">
-            {shop.bankingQR ? (
-              <img
-                src={shop.bankingQR}
-                alt="Banking QR Code"
-                className="max-w-full h-auto rounded-lg"
-              />
-            ) : (
-              <p className="text-muted-foreground">No QR code uploaded</p>
-            )}
+          <div className="space-y-4 py-4">
+            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+              <Building2 className="w-5 h-5 text-muted-foreground" />
+              <div>
+                <p className="text-xs text-muted-foreground">Bank Name</p>
+                <p className="font-medium">{(shop as any).shop_bank_account || 'Not set'}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+              <CreditCard className="w-5 h-5 text-muted-foreground" />
+              <div>
+                <p className="text-xs text-muted-foreground">Account Number</p>
+                <p className="font-medium">{(shop as any).shop_bank_account_number || 'Not set'}</p>
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -596,11 +685,13 @@ export default function ShopPage({ params }: ShopPageProps) {
         existingProduct={editingProduct}
       />
 
-      {/* Edit QR Code Dialog */}
-      <EditShopQRDialog
-        open={showEditQR}
-        onOpenChange={setShowEditQR}
+      {/* Edit Bank Info Dialog */}
+      <EditShopBankDialog
+        open={showEditBank}
+        onOpenChange={setShowEditBank}
         shopId={id}
+        currentBankAccount={(shop as any).shop_bank_account || ''}
+        currentBankAccountNumber={(shop as any).shop_bank_account_number || ''}
       />
 
       {/* Delete Shop Dialog */}
@@ -610,8 +701,7 @@ export default function ShopPage({ params }: ShopPageProps) {
         shopId={id}
         shopName={shop.name}
         onDelete={() => {
-          // In real app, would delete shop and redirect
-          console.log("Shop deleted")
+          router.push("/my-shops")
         }}
       />
     </div>
