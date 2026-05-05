@@ -54,6 +54,7 @@ interface ApiShopRecord {
   owner: string
   shop_name: string
   shop_bank_account: string
+  
   shop_bank_account_number: string
 }
 
