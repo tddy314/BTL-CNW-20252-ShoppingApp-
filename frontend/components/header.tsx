@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, ShoppingCart, Menu, X, LogOut, User, Bell, History, DollarSign, Plus, Store } from 'lucide-react';
+import { Search, ShoppingCart, Menu, X, LogOut, User, Bell, History, Plus, Store } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/auth-context';
@@ -133,18 +133,6 @@ export function Header() {
                         Order History
                       </button>
 
-                      {/* Total Spend Option */}
-                      <button
-                        onClick={() => {
-                          setIsProfileOpen(false);
-                          handleNavigation('/orders');
-                        }}
-                        className="w-full text-left px-4 py-2 text-foreground hover:bg-muted transition-colors text-sm flex items-center gap-3"
-                      >
-                        <DollarSign className="w-4 h-4" />
-                        Total Spend
-                      </button>
-
                       <div className="my-1 border-t border-border" />
 
                         {/* NÚT TẠO SHOP MỚI */}
@@ -261,19 +249,6 @@ export function Header() {
                 >
                   Order History
                 </Button>
-                <Button
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    handleNavigation('/orders');
-                  }}
-                  variant="outline"
-                  className="w-full text-foreground border-border hover:bg-muted"
-                >
-                  Total Spend
-                </Button>
-                
-                
-
                 {/* NÚT TẠO SHOP MỚI */}
                 <Button 
                   onClick={() => { setShowCreateShop(true); setIsProfileOpen(false); }}
@@ -331,3 +306,6 @@ export function Header() {
     
   );
 }
+
+
+

@@ -19,7 +19,7 @@ export function ProductComments({
 }: ProductCommentsProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [showCommentForm, setShowCommentForm] = useState(false)
-  const [newRating, setNewRating] = useState(5)
+  const [newRating, setNewRating] = useState(0)
   const [newText, setNewText] = useState('')
   const COMMENTS_PER_PAGE = 5
 
@@ -33,7 +33,7 @@ export function ProductComments({
     if (newText.trim()) {
       onAddComment(newRating, newText)
       setNewText('')
-      setNewRating(5)
+      setNewRating(0)
       setShowCommentForm(false)
       setCurrentPage(Math.ceil((comments.length + 1) / COMMENTS_PER_PAGE))
     }
@@ -82,7 +82,13 @@ export function ProductComments({
         <div className="bg-gray-50 rounded-lg p-6 mb-8 border border-border">
           <div className="mb-4">
             <label className="block text-sm font-semibold text-foreground mb-3">Rating</label>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setNewRating(0)}
+                className={`px-3 py-1 rounded-md border text-sm ${newRating === 0 ? 'bg-muted border-primary' : 'border-border'}`}
+              >
+                0
+              </button>
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}

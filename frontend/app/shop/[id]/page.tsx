@@ -39,7 +39,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useStore, type Product } from "@/lib/store"
 import { PublishProductDialog } from "@/components/publish-product-dialog"
-import { EditShopBankDialog, DeleteShopDialog } from "@/components/edit-shop-dialog"
+import { EditShopBankDialog, DeleteShopDialog, EditShopInfoDialog } from "@/components/edit-shop-dialog"
 import { useRouter } from "next/navigation"
 import { ApiGateway, normalizeIdentifierToUuid, type ProductRecord } from "@/app/utils/api"
 import { useAuth } from "@/contexts/auth-context"
@@ -56,6 +56,7 @@ interface ApiShopRecord {
   shop_name: string
   shop_bank_account: string
   shop_bank_account_number: string
+  shop_img?: string | null
 }
 
 const api = new ApiGateway()
@@ -68,6 +69,7 @@ export default function ShopPage({ params }: ShopPageProps) {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [showBankInfo, setShowBankInfo] = useState(false)
   const [showEditBank, setShowEditBank] = useState(false)
+  const [showEditShopInfo, setShowEditShopInfo] = useState(false)
   const [showDeleteShop, setShowDeleteShop] = useState(false)
   const [apiShop, setApiShop] = useState<ApiShopRecord | null>(null)
   const [shopProducts, setShopProducts] = useState<Product[]>([])
@@ -135,6 +137,7 @@ export default function ShopPage({ params }: ShopPageProps) {
         id: String(apiShop.id),
         name: apiShop.shop_name,
         avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(apiShop.shop_name)}&background=ee4d2d&color=fff`,
+        shop_img: apiShop.shop_img || null,
         ownerId: apiShop.owner,
         createdAt: new Date(apiShop.created_at),
         products: [],
@@ -236,7 +239,7 @@ export default function ShopPage({ params }: ShopPageProps) {
           <div className="container mx-auto px-4">
             <div className="flex items-center gap-6">
               <Avatar className="w-24 h-24 border-4 border-white shadow-lg">
-                <AvatarImage src={shop.avatar} alt={shop.name} />
+                <AvatarImage src={(shop as any).shop_img || shop.avatar} alt={shop.name} />
                 <AvatarFallback className="bg-white text-[#ee4d2d] text-3xl">
                   {shop.name.charAt(0).toUpperCase()}
                 </AvatarFallback>
@@ -272,6 +275,13 @@ export default function ShopPage({ params }: ShopPageProps) {
                   >
                     <Building2 className="w-4 h-4 mr-2" />
                     Bank Info
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="border-white text-white hover:bg-white/10 bg-transparent text-sm"
+                    onClick={() => setShowEditShopInfo(true)}
+                  >
+                    Edit Shop
                   </Button>
                   <Button
                     variant="outline"
@@ -724,6 +734,20 @@ export default function ShopPage({ params }: ShopPageProps) {
         shopId={id}
         currentBankAccount={(shop as any).shop_bank_account || ''}
         currentBankAccountNumber={(shop as any).shop_bank_account_number || ''}
+      />
+
+      <EditShopInfoDialog
+        open={showEditShopInfo}
+        onOpenChange={setShowEditShopInfo}
+        shopId={id}
+        currentShopName={shop.name}
+        currentShopImg={(shop as any).shop_img || ''}
+        onSaved={async () => {
+          const shopId = Number(id)
+          if (!Number.isFinite(shopId)) return
+          const result = await api.getShopById({ shop_id: shopId })
+          setApiShop(result || null)
+        }}
       />
 
       {/* Delete Shop Dialog */}

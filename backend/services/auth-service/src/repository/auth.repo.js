@@ -1,55 +1,71 @@
 import { supabaseUsers, supabaseAdmin } from "../config/database/supabase.config.js";
 
+async function upsertProfileOnSignup(email) {
+    const { error } = await supabaseAdmin
+        .from("profile")
+        .upsert(
+            {
+                email,
+                name: email,
+                profile_img: null,
+            },
+            { onConflict: "email" }
+        );
+
+    if (error) {
+        throw new Error(error.message);
+    }
+}
+
 export class AuthServiceRepository {
     async signUp(email, password) {
         const { data, error } = await supabaseUsers.auth.signUp({
-            email: email,
-            password: password,
+            email,
+            password,
             options: {
                 data: {
-                    role: 'user', // Bạn tự định nghĩa key và value ở đây
-                    //full_name: 'Nguyen Van A'
-                }
-            }
-        })
+                    role: "user",
+                },
+            },
+        });
 
         if (error) {
-            console.error('Lỗi đăng ký:', error.message)
             throw new Error(error.message);
         }
-        else console.log('Đăng ký thành công, kiểm tra email của bạn!', data)
-        return data
+
+        await upsertProfileOnSignup(email);
+        return data;
     }
+
     async signIn(email, password) {
         const { data, error } = await supabaseUsers.auth.signInWithPassword({
-            email: email,
-            password: password,
-        })
+            email,
+            password,
+        });
 
         if (error) {
-            console.error('Lỗi đăng nhập:', error.message)
-            throw new Error(error.message)
-        }
-        else console.log('Đăng nhập thành công:', data.user)
-        return data 
-    }
-    async signUpAsAdmin(email, password) {
-        const { data, error } = await supabaseUsers.auth.signUp({
-            email: email,
-            password: password,
-            options: {
-                data: {
-                    role: 'admin', // Bạn tự định nghĩa key và value ở đây
-                    //full_name: 'Nguyen Van A'
-                }
-            }
-        })
-
-        if (error) {
-            console.error('Lỗi đăng ký:', error.message)
             throw new Error(error.message);
         }
-        else console.log('Đăng ký thành công, kiểm tra email của bạn!', data)
-        return data
+
+        return data;
+    }
+
+    async signUpAsAdmin(email, password) {
+        const { data, error } = await supabaseUsers.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    role: "admin",
+                },
+            },
+        });
+
+        if (error) {
+            throw new Error(error.message);
+        }
+
+        await upsertProfileOnSignup(email);
+        return data;
     }
 }

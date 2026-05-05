@@ -24,9 +24,127 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Building2, CreditCard } from 'lucide-react'
+import { Building2, CreditCard, Image as ImageIcon, Store } from 'lucide-react'
 
 const api = new ApiGateway()
+
+interface EditShopInfoDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  shopId: string
+  currentShopName?: string
+  currentShopImg?: string
+  onSaved?: () => void
+}
+
+export function EditShopInfoDialog({
+  open,
+  onOpenChange,
+  shopId,
+  currentShopName = '',
+  currentShopImg = '',
+  onSaved,
+}: EditShopInfoDialogProps) {
+  const { email } = useAuth()
+  const [shopName, setShopName] = useState(currentShopName)
+  const [shopImg, setShopImg] = useState(currentShopImg)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSave = async () => {
+    if (!email) return
+    if (!shopName.trim() && !shopImg.trim()) return
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      await api.updateShopInfo({
+        shop_id: Number(shopId),
+        owner: email,
+        shop_name: shopName.trim() || undefined,
+        shop_img: shopImg.trim() || null,
+      })
+      onSaved?.()
+      onOpenChange(false)
+    } catch (err: any) {
+      setError(err.message || 'Failed to update shop info')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleClose = () => {
+    setShopName(currentShopName)
+    setShopImg(currentShopImg)
+    setError(null)
+    onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Update Shop Information</DialogTitle>
+          <DialogDescription>
+            Update your shop name and image link.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label htmlFor="editShopName" className="flex items-center gap-1.5">
+              <Store className="w-3.5 h-3.5" />
+              Shop Name
+            </Label>
+            <Input
+              id="editShopName"
+              placeholder="Enter your shop name"
+              value={shopName}
+              onChange={(e) => setShopName(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="editShopImg" className="flex items-center gap-1.5">
+              <ImageIcon className="w-3.5 h-3.5" />
+              Shop Image Link
+            </Label>
+            <Input
+              id="editShopImg"
+              placeholder="https://example.com/shop-image.jpg"
+              value={shopImg}
+              onChange={(e) => setShopImg(e.target.value)}
+            />
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button
+            variant="outline"
+            onClick={handleClose}
+            disabled={isLoading}
+          >
+            Cancel
+          </Button>
+          <Button
+            className="bg-[#ee4d2d] hover:bg-[#d73211] text-white"
+            onClick={handleSave}
+            disabled={isLoading}
+          >
+            {isLoading ? 'Saving...' : 'Save'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 interface EditShopBankDialogProps {
   open: boolean

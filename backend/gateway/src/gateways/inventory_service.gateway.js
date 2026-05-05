@@ -41,6 +41,16 @@ export class InventoryGateWay {
         }
     }
 
+    async updateShopInfo(req, res) {
+        try {
+            const result = await this.inventory_service.updateShopInfo(req.body);
+            return res.status(200).json(result);
+        }
+        catch (error) {
+            return res.status(500).json({ message: "Error: " + this.buildErrorMessage(error) });
+        }
+    }
+
     async getShopsByOwner(req, res) {
         try {
             const result = await this.inventory_service.getShopsByOwner(req.body);
@@ -54,6 +64,36 @@ export class InventoryGateWay {
     async getShopById(req, res) {
         try {
             const result = await this.inventory_service.getShopById(req.body);
+            return res.status(200).json(result);
+        }
+        catch (error) {
+            return res.status(500).json({ message: "Error: " + this.buildErrorMessage(error) });
+        }
+    }
+
+    async createProfile(req, res) {
+        try {
+            const result = await this.inventory_service.createProfile(req.body);
+            return res.status(200).json(result);
+        }
+        catch (error) {
+            return res.status(500).json({ message: "Error: " + this.buildErrorMessage(error) });
+        }
+    }
+
+    async getProfile(req, res) {
+        try {
+            const result = await this.inventory_service.getProfile(req.body);
+            return res.status(200).json(result);
+        }
+        catch (error) {
+            return res.status(500).json({ message: "Error: " + this.buildErrorMessage(error) });
+        }
+    }
+
+    async updateProfile(req, res) {
+        try {
+            const result = await this.inventory_service.updateProfile(req.body);
             return res.status(200).json(result);
         }
         catch (error) {

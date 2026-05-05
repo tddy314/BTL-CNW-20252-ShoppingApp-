@@ -1,7 +1,7 @@
 "use client"
 
+import { Suspense, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, CreditCard, ReceiptText } from "lucide-react"
 import { Header } from "@/components/header"
@@ -86,7 +86,7 @@ async function readCartItemById(email: string, cartItemId: string): Promise<Cart
   return null
 }
 
-export default function ConfirmOrderPage() {
+function ConfirmOrderPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { isLoggedIn, email } = useAuth()
@@ -180,7 +180,7 @@ export default function ConfirmOrderPage() {
         address: address.trim(),
         receiver: receiver.trim(),
         quantity,
-        seller: shop.shopName || "seller",
+        seller: shop.shopName?.trim() || "Unknown shop",
         shop_id: normalizeIdentifierToUuid(shop.shopId),
       })
 
@@ -384,5 +384,25 @@ export default function ConfirmOrderPage() {
 
       <Footer />
     </div>
+  )
+}
+
+export default function ConfirmOrderPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-background flex flex-col">
+          <Header />
+          <main className="flex-1 max-w-5xl mx-auto px-4 py-10 w-full">
+            <Card className="p-6 md:p-8 border border-border mb-6">
+              <p className="text-muted-foreground">Loading checkout...</p>
+            </Card>
+          </main>
+          <Footer />
+        </div>
+      }
+    >
+      <ConfirmOrderPageContent />
+    </Suspense>
   )
 }

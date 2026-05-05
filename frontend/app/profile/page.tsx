@@ -1,21 +1,79 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useStore } from '@/lib/store'
+import { useAuth } from '@/contexts/auth-context'
 import { Header } from '@/components/header'
 import { CreateShopDialog } from '@/components/create-shop-dialog'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ArrowLeft, Store, ShoppingBag, TrendingUp, Users, Edit2, Camera } from 'lucide-react'
 import { EditProfileDialog } from '@/components/edit-profile-dialog'
+import { ApiGateway } from '@/app/utils/api'
 
 export default function ProfilePage() {
   const { user } = useStore()
+  const { email, isLoggedIn } = useAuth()
+  const api = new ApiGateway()
   const [showCreateShop, setShowCreateShop] = useState(false)
   const [editAvatarOpen, setEditAvatarOpen] = useState(false)
   const [editNameOpen, setEditNameOpen] = useState(false)
+  const [shopsCount, setShopsCount] = useState(0)
+  const [ordersCount, setOrdersCount] = useState(0)
+  const [profileName, setProfileName] = useState(user?.name || '')
+  const [profileAvatar, setProfileAvatar] = useState(user?.avatar || '')
+
+  useEffect(() => {
+    const loadCounts = async () => {
+      if (!isLoggedIn || !email) {
+        setShopsCount(0)
+        setOrdersCount(0)
+        return
+      }
+
+      try {
+        const [shopsResult, ordersResult] = await Promise.all([
+          api.getShopsByOwner({ owner: email, page: 1, limit: 1 }),
+          api.readOrdersByBuyer({ buyer: email, page: 1, limit: 1 }),
+        ])
+
+        setShopsCount(Number(shopsResult?.totalItems || 0))
+        setOrdersCount(Number(ordersResult?.totalItems || 0))
+      } catch {
+        setShopsCount(0)
+        setOrdersCount(0)
+      }
+    }
+
+    loadCounts()
+  }, [isLoggedIn, email])
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!isLoggedIn || !email) {
+        return
+      }
+
+      try {
+        const profile = await api.getProfile({ email })
+        setProfileName(profile?.name || email)
+        setProfileAvatar(profile?.profile_img || user?.avatar || '')
+      } catch {
+        try {
+          const created = await api.createProfile({ email, name: email, profile_img: null })
+          setProfileName(created?.name || email)
+          setProfileAvatar(created?.profile_img || user?.avatar || '')
+        } catch {
+          setProfileName(user?.name || email)
+          setProfileAvatar(user?.avatar || '')
+        }
+      }
+    }
+
+    loadProfile()
+  }, [isLoggedIn, email, user?.name, user?.avatar])
 
   if (!user || !user.isLoggedIn) {
     return (
@@ -53,8 +111,8 @@ export default function ProfilePage() {
           {/* Avatar */}
           <div className="relative group">
             <Image
-              src={user.avatar}
-              alt={user.name}
+              src={profileAvatar || user.avatar}
+              alt={profileName || user.name}
               width={160}
               height={160}
               className="w-40 h-40 rounded-full object-cover border-4 border-[#ee4d2d]"
@@ -71,7 +129,7 @@ export default function ProfilePage() {
             {/* User Info */}
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-4xl font-bold text-gray-900">{user.name}</h1>
+                <h1 className="text-4xl font-bold text-gray-900">{profileName || user.name}</h1>
                 <button
                   onClick={() => setEditNameOpen(true)}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -80,7 +138,7 @@ export default function ProfilePage() {
                   <Edit2 className="w-5 h-5 text-gray-500 hover:text-[#ee4d2d]" />
                 </button>
               </div>
-              <p className="text-gray-600 text-lg mb-6">{user.email}</p>
+              <p className="text-gray-600 text-lg mb-6">{email || user.email}</p>
 
               {/* Stats Grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -92,7 +150,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="bg-gradient-to-br from-teal-50 to-teal-100 rounded-lg p-4">
                   <div className="text-2xl font-bold text-[#00bfa5]">
-                    {user.shops.length}
+                    {shopsCount}
                   </div>
                   <p className="text-sm text-gray-600">Shops Owned</p>
                 </div>
@@ -138,7 +196,7 @@ export default function ProfilePage() {
               </div>
               <div className="text-left">
                 <div className="font-semibold text-gray-900">My Shops</div>
-                <div className="text-sm text-gray-500">{user.shops.length} shop{user.shops.length !== 1 ? 's' : ''}</div>
+                <div className="text-sm text-gray-500">{shopsCount} shop{shopsCount !== 1 ? 's' : ''}</div>
               </div>
             </Link>
 
@@ -149,7 +207,7 @@ export default function ProfilePage() {
               </div>
               <div className="text-left">
                 <div className="font-semibold text-gray-900">Order History</div>
-                <div className="text-sm text-gray-500">{user.purchasedProductIds.length} order{user.purchasedProductIds.length !== 1 ? 's' : ''}</div>
+                <div className="text-sm text-gray-500">{ordersCount} order{ordersCount !== 1 ? 's' : ''}</div>
               </div>
             </Link>
 
@@ -174,7 +232,7 @@ export default function ProfilePage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between py-3 border-b border-gray-200">
               <span className="text-gray-600">Email Address</span>
-              <span className="font-medium text-gray-900">{user.email}</span>
+              <span className="font-medium text-gray-900">{email || user.email}</span>
             </div>
             <div className="flex items-center justify-between py-3 border-b border-gray-200">
               <span className="text-gray-600">Account Type</span>
@@ -213,11 +271,25 @@ export default function ProfilePage() {
         open={editAvatarOpen}
         onOpenChange={setEditAvatarOpen}
         type="avatar"
+        currentAvatar={profileAvatar || user.avatar}
+        currentName={profileName || user.name}
+        onSaved={({ avatar }) => {
+          if (avatar !== undefined) {
+            setProfileAvatar(avatar)
+          }
+        }}
       />
       <EditProfileDialog
         open={editNameOpen}
         onOpenChange={setEditNameOpen}
         type="name"
+        currentAvatar={profileAvatar || user.avatar}
+        currentName={profileName || user.name}
+        onSaved={({ name }) => {
+          if (name !== undefined) {
+            setProfileName(name)
+          }
+        }}
       />
     </div>
   )

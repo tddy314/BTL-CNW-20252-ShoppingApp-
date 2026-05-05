@@ -11,6 +11,7 @@ import { ProductComments } from '@/components/product-comment';
 import { useAuth } from '@/contexts/auth-context';
 import { ApiGateway } from '@/app/utils/api';
 import { FALLBACK_PRODUCT_IMAGE, mapApiProductToStoreProduct } from '@/lib/product-mapper';
+import type { ProductComment } from '@/lib/store';
 
 const gatewayApi = new ApiGateway();
 
@@ -23,6 +24,10 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [comments, setComments] = useState<ProductComment[]>([]);
+  const [productRating, setProductRating] = useState<number>(0);
+  const [productReviewsCount, setProductReviewsCount] = useState<number>(0);
+  const [shopRating, setShopRating] = useState<number>(0);
   const [selectedColor, setSelectedColor] = useState<string>(product?.properties.colors?.[0] || '');
   const [selectedSize, setSelectedSize] = useState<string>(product?.properties.sizes?.[0] || '');
   const [selectedMaterial, setSelectedMaterial] = useState<string>(product?.properties.materials?.[0] || '');
@@ -55,6 +60,35 @@ export default function ProductDetailPage() {
             .filter((item) => item.id !== mapped.id)
             .slice(0, 4)
         );
+
+        try {
+          const [reviewsResponse, productRatingResponse, shopRatingResponse] = await Promise.all([
+            gatewayApi.getReviewsByProduct({ product_id: mapped.id, page: 1, limit: 100 }),
+            gatewayApi.getProductRating({ product_id: mapped.id }),
+            gatewayApi.getShopRating({ shop_id: mapped.shopId }),
+          ]);
+
+          setComments(
+            (reviewsResponse?.items || []).map((review) => ({
+              id: String(review.id),
+              productId: review.product_id,
+              userId: review.user_email,
+              userName: review.user_email,
+              rating: Number(review.rating),
+              text: review.comment,
+              createdAt: new Date(review.created_at),
+            }))
+          );
+          setProductRating(Number(productRatingResponse?.average_rating || 0));
+          setProductReviewsCount(Number(productRatingResponse?.total_reviews || 0));
+          setShopRating(Number(shopRatingResponse?.average_rating || 0));
+        } catch {
+          // Review service should not block product details rendering.
+          setComments([]);
+          setProductRating(0);
+          setProductReviewsCount(0);
+          setShopRating(0);
+        }
       } catch {
         setProduct(null);
       } finally {
@@ -129,7 +163,44 @@ export default function ProductDetailPage() {
     );
   }
 
-  const canComment = false
+  const canComment = isLoggedIn
+  const shopAvatarSrc =
+    product.shopAvatar ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(product.shopName)}&background=ee4d2d&color=fff`;
+
+  const handleAddComment = async (rating: number, text: string) => {
+    if (!email || !product) {
+      return;
+    }
+
+    await gatewayApi.addReview({
+      product_id: product.id,
+      user_email: email,
+      comment: text,
+      rating,
+    });
+
+    const [reviewsResponse, productRatingResponse, shopRatingResponse] = await Promise.all([
+      gatewayApi.getReviewsByProduct({ product_id: product.id, page: 1, limit: 100 }),
+      gatewayApi.getProductRating({ product_id: product.id }),
+      gatewayApi.getShopRating({ shop_id: product.shopId }),
+    ]);
+
+    setComments(
+      (reviewsResponse?.items || []).map((review) => ({
+        id: String(review.id),
+        productId: review.product_id,
+        userId: review.user_email,
+        userName: review.user_email,
+        rating: Number(review.rating),
+        text: review.comment,
+        createdAt: new Date(review.created_at),
+      }))
+    );
+    setProductRating(Number(productRatingResponse?.average_rating || 0));
+    setProductReviewsCount(Number(productRatingResponse?.total_reviews || 0));
+    setShopRating(Number(shopRatingResponse?.average_rating || 0));
+  };
 
   return (
     <main className="flex-1 bg-background">
@@ -192,7 +263,7 @@ export default function ProductDetailPage() {
                     <Star
                       key={i}
                       className={`w-5 h-5 ${
-                        i < Math.floor(product.rating)
+                        i < Math.floor(productRating)
                           ? 'fill-yellow-400 text-yellow-400'
                           : 'text-gray-300'
                       }`}
@@ -200,7 +271,7 @@ export default function ProductDetailPage() {
                   ))}
                 </div>
                 <span className="text-sm text-muted-foreground">
-                  {product.rating} ({product.reviews} reviews) • {product.soldCount.toLocaleString()} sold
+                  {productRating.toFixed(1)} ({productReviewsCount} reviews) • {product.soldCount.toLocaleString()} sold
                 </span>
               </div>
             </div>
@@ -358,10 +429,10 @@ export default function ProductDetailPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <img
-                src={product.shopAvatar}
+                src={shopAvatarSrc}
                 alt={product.shopName}
                 onError={(event) => {
-                  event.currentTarget.src = FALLBACK_PRODUCT_IMAGE;
+                  event.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(product.shopName)}&background=ee4d2d&color=fff`;
                 }}
                 className="w-16 h-16 rounded-full object-cover"
               />
@@ -373,14 +444,14 @@ export default function ProductDetailPage() {
                       <Star
                         key={i}
                         className={`w-4 h-4 ${
-                          i < Math.floor(product.shopRating)
+                          i < Math.floor(shopRating)
                             ? 'fill-yellow-400 text-yellow-400'
                             : 'text-gray-300'
                         }`}
                       />
                     ))}
                   </div>
-                  <span className="text-sm text-muted-foreground">{product.shopRating} shop rating</span>
+                  <span className="text-sm text-muted-foreground">{shopRating.toFixed(1)} shop rating</span>
                 </div>
               </div>
             </div>
@@ -407,9 +478,9 @@ export default function ProductDetailPage() {
         </div>
 
         <ProductComments
-          comments={product.comments || []}
-          productRating={product.rating || 4.5}
-          onAddComment={() => {}}
+          comments={comments}
+          productRating={productRating}
+          onAddComment={handleAddComment}
           userCanComment={canComment}
         />
 

@@ -40,6 +40,8 @@ export type ProductRecord = {
     product_id: string;
     shop_id: string;
     shop_owner: string;
+    shop_name?: string;
+    shop_img?: string | null;
     product_img_link: string | null;
     category: string;
     price: number;
@@ -62,6 +64,31 @@ export type PaginatedProductResponse = {
     totalItems: number;
     totalPages: number;
     items: ProductRecord[];
+};
+
+export type ProfileRecord = {
+    id: number;
+    created_at: string;
+    profile_img: string | null;
+    name: string;
+    email: string;
+};
+
+export type ReviewRecord = {
+    id: number;
+    created_at: string;
+    product_id: string;
+    user_email: string;
+    comment: string;
+    rating: number;
+};
+
+export type PaginatedReviewResponse = {
+    currentPage: number;
+    limit: number;
+    totalItems: number;
+    totalPages: number;
+    items: ReviewRecord[];
 };
 
 export type NewOrderPayload = {
@@ -371,6 +398,51 @@ export class ApiGateway {
         }
     }
 
+    async createProfile(payload: { email: string; name?: string; profile_img?: string | null; }): Promise<ProfileRecord> {
+        try {
+            const res = await axios.post(`${GATEWAY_BASE_URL}/api-gate/inventory-service/create-profile`, payload);
+            return res.data?.result;
+        }
+        catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to create profile");
+        }
+    }
+
+    async updateShopInfo(payload: {
+        shop_id: number;
+        owner: string;
+        shop_name?: string;
+        shop_img?: string | null;
+    }) {
+        try {
+            const res = await axios.patch(`${GATEWAY_BASE_URL}/api-gate/inventory-service/update-shop-info`, payload);
+            return res.data?.result;
+        }
+        catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to update shop info");
+        }
+    }
+
+    async getProfile(payload: { email: string; }): Promise<ProfileRecord> {
+        try {
+            const res = await axios.post(`${GATEWAY_BASE_URL}/api-gate/inventory-service/get-profile`, payload);
+            return res.data?.result;
+        }
+        catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to get profile");
+        }
+    }
+
+    async updateProfile(payload: { email: string; name?: string; profile_img?: string | null; }): Promise<ProfileRecord> {
+        try {
+            const res = await axios.patch(`${GATEWAY_BASE_URL}/api-gate/inventory-service/update-profile`, payload);
+            return res.data?.result;
+        }
+        catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to update profile");
+        }
+    }
+
     // ========== PRODUCT SERVICE ==========
 
     async addProduct(payload: {
@@ -448,6 +520,49 @@ export class ApiGateway {
             return res.data?.result;
         } catch(error: any) {
             throw new Error(error?.response?.data?.message || "Failed to search products");
+        }
+    }
+
+    // ========== REVIEW SERVICE ==========
+
+    async addReview(payload: {
+        product_id: string;
+        user_email: string;
+        comment: string;
+        rating: number;
+    }): Promise<ReviewRecord> {
+        try {
+            const res = await axios.post(`${GATEWAY_BASE_URL}/api-gate/review-service/add-review`, payload);
+            return res.data?.result;
+        } catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to add review");
+        }
+    }
+
+    async getReviewsByProduct(payload: { product_id: string; page?: number; limit?: number; }): Promise<PaginatedReviewResponse> {
+        try {
+            const res = await axios.post(`${GATEWAY_BASE_URL}/api-gate/review-service/get-reviews-by-product`, payload);
+            return res.data?.result;
+        } catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to get reviews");
+        }
+    }
+
+    async getProductRating(payload: { product_id: string; }): Promise<{ product_id: string; average_rating: number; total_reviews: number; }> {
+        try {
+            const res = await axios.post(`${GATEWAY_BASE_URL}/api-gate/review-service/get-product-rating`, payload);
+            return res.data?.result;
+        } catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to get product rating");
+        }
+    }
+
+    async getShopRating(payload: { shop_id: string; }): Promise<{ shop_id: string; average_rating: number; total_reviews: number; }> {
+        try {
+            const res = await axios.post(`${GATEWAY_BASE_URL}/api-gate/review-service/get-shop-rating`, payload);
+            return res.data?.result;
+        } catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to get shop rating");
         }
     }
 }

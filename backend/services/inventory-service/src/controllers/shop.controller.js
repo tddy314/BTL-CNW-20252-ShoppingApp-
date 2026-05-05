@@ -108,4 +108,79 @@ export class ShopController {
             res.status(400).json({ message: "Error: " + error.message });
         }
     }
+
+    async updateShopInfo(req, res) {
+        try {
+            const {
+                shop_id,
+                owner,
+                shop_name,
+                shop_img,
+            } = req.body;
+
+            if (!shop_id || !owner) {
+                throw new Error("shop_id and owner are required");
+            }
+
+            const result = await this.shopRepo.updateShopInfo({
+                shop_id,
+                owner,
+                shop_name,
+                shop_img,
+            });
+
+            res.status(200).json({ message: "Shop info updated successfully", result });
+        }
+        catch (error) {
+            res.status(400).json({ message: "Error: " + error.message });
+        }
+    }
+
+    async createProfile(req, res) {
+        try {
+            const { email, name, profile_img } = req.body;
+
+            if (!email) {
+                throw new Error("email is required");
+            }
+
+            const result = await this.shopRepo.createProfile({ email, name, profile_img });
+            res.status(200).json({ message: "OK", result });
+        }
+        catch (error) {
+            res.status(400).json({ message: "Error: " + error.message });
+        }
+    }
+
+    async getProfile(req, res) {
+        try {
+            const { email } = req.body;
+
+            if (!email) {
+                throw new Error("email is required");
+            }
+
+            const result = await this.shopRepo.getProfile({ email });
+            res.status(200).json({ message: "OK", result });
+        }
+        catch (error) {
+            res.status(400).json({ message: "Error: " + error.message });
+        }
+    }
+
+    async updateProfile(req, res) {
+        try {
+            const { email, name, profile_img } = req.body;
+
+            if (!email) {
+                throw new Error("email is required");
+            }
+
+            const result = await this.shopRepo.updateProfile({ email, name, profile_img });
+            res.status(200).json({ message: "OK", result });
+        }
+        catch (error) {
+            res.status(400).json({ message: "Error: " + error.message });
+        }
+    }
 }
