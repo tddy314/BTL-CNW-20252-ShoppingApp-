@@ -1,36 +1,69 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 //import { mockProducts } from '@/lib/mock-products';
 import { Star, Heart, ShoppingCart, ChevronLeft, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useStore } from '@/lib/store'
+import type { Product } from '@/lib/store'
 import { Header } from '@/components/header';
 import { ProductComments } from '@/components/product-comment';
 import { useAuth } from '@/contexts/auth-context';
 import { ApiGateway } from '@/app/utils/api';
+import { FALLBACK_PRODUCT_IMAGE, mapApiProductToStoreProduct } from '@/lib/product-mapper';
 
 const gatewayApi = new ApiGateway();
 
 export default function ProductDetailPage() {
-  const { products, getProductById, getProductsByCategory, addComment, purchaseProduct, userHasPurchased, user, getShopById } = useStore()
   const { email, isLoggedIn } = useAuth();
   const router = useRouter();
   const params = useParams();
   const rawParamId = params.id;
   const productId = Array.isArray(rawParamId) ? rawParamId[0] : rawParamId;
-  const product = productId ? getProductById(productId) : undefined;
+  const [product, setProduct] = useState<Product | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedColor, setSelectedColor] = useState<string>(product?.properties.colors?.[0] || '');
   const [selectedSize, setSelectedSize] = useState<string>(product?.properties.sizes?.[0] || '');
   const [selectedMaterial, setSelectedMaterial] = useState<string>(product?.properties.materials?.[0] || '');
   const [quantity, setQuantity] = useState(1);
   const [isFavorite, setIsFavorite] = useState(false);
-  const handleAddComment = (rating: number, text: string) => {
-    if (user && product) {
-      addComment(product.id, user.id, user.name, rating, text)
-    }
-  }
+
+  useEffect(() => {
+    const loadProduct = async () => {
+      if (!productId) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const result = await gatewayApi.getProductById({ product_id: productId });
+        const mapped = mapApiProductToStoreProduct(result);
+        setProduct(mapped);
+        setSelectedColor(mapped.properties.colors?.[0] || "");
+        setSelectedSize(mapped.properties.sizes?.[0] || "");
+        setSelectedMaterial(mapped.properties.materials?.[0] || "");
+
+        const related = await gatewayApi.searchProducts({
+          page: 1,
+          limit: 8,
+          category: mapped.category,
+        });
+        setRelatedProducts(
+          (related.items || [])
+            .map(mapApiProductToStoreProduct)
+            .filter((item) => item.id !== mapped.id)
+            .slice(0, 4)
+        );
+      } catch {
+        setProduct(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProduct();
+  }, [productId]);
 
   const handleAddToCart = async () => {
     if (!product) {
@@ -76,6 +109,10 @@ export default function ProductDetailPage() {
     }
   }
 
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading product...</div>;
+  }
+
   if (!product) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -92,12 +129,7 @@ export default function ProductDetailPage() {
     );
   }
 
-  const isShopOwner = Boolean(user?.id && getShopById(product.shopId)?.ownerId === user.id)
-  const canComment = Boolean(user?.isLoggedIn && (userHasPurchased(product.id) || isShopOwner))
-
-  const relatedProducts = getProductsByCategory(product.category).filter(
-    p => p.category === product.category && p.id !== product.id
-  ).slice(0, 4);
+  const canComment = false
 
   return (
     <main className="flex-1 bg-background">
@@ -122,6 +154,9 @@ export default function ProductDetailPage() {
               <img
                 src={product.image}
                 alt={product.name}
+                onError={(event) => {
+                  event.currentTarget.src = FALLBACK_PRODUCT_IMAGE;
+                }}
                 className="w-full h-full object-contain p-4"
               />
             </div>
@@ -132,7 +167,14 @@ export default function ProductDetailPage() {
                     key={i}
                     className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden border-2 border-transparent hover:border-primary"
                   >
-                    <img src={img} alt="" className="w-full h-full object-cover" />
+                    <img
+                      src={img}
+                      alt=""
+                      onError={(event) => {
+                        event.currentTarget.src = FALLBACK_PRODUCT_IMAGE;
+                      }}
+                      className="w-full h-full object-cover"
+                    />
                   </button>
                 ))}
               </div>
@@ -318,6 +360,9 @@ export default function ProductDetailPage() {
               <img
                 src={product.shopAvatar}
                 alt={product.shopName}
+                onError={(event) => {
+                  event.currentTarget.src = FALLBACK_PRODUCT_IMAGE;
+                }}
                 className="w-16 h-16 rounded-full object-cover"
               />
               <div>
@@ -342,7 +387,7 @@ export default function ProductDetailPage() {
             <Button
               onClick={() => {
                 setTimeout(() => {
-                  router.push(`/shop/${product.shopId}`);
+                  router.push(`/shop/${product.shopId}/browse`);
                 }, 0);
               }}
               className="bg-primary hover:bg-primary/90 text-white"
@@ -364,7 +409,7 @@ export default function ProductDetailPage() {
         <ProductComments
           comments={product.comments || []}
           productRating={product.rating || 4.5}
-          onAddComment={handleAddComment}
+          onAddComment={() => {}}
           userCanComment={canComment}
         />
 
@@ -387,6 +432,9 @@ export default function ProductDetailPage() {
                     <img
                       src={relProduct.image}
                       alt={relProduct.name}
+                      onError={(event) => {
+                        event.currentTarget.src = FALLBACK_PRODUCT_IMAGE;
+                      }}
                       className="w-full h-full object-cover"
                     />
                   </div>

@@ -34,6 +34,36 @@ export type PaginatedOrderResponse = {
     items: OrderRecord[];
 };
 
+export type ProductRecord = {
+    id: number;
+    created_at: string;
+    product_id: string;
+    shop_id: string;
+    shop_owner: string;
+    product_img_link: string | null;
+    category: string;
+    price: number;
+    description: string;
+    name: string;
+    tag: string | null;
+    tags: string[];
+    colors_list: string | null;
+    colors: string[];
+    size_list: string | null;
+    sizes: string[];
+    material_list: string | null;
+    materials: string[];
+    sold_count: number;
+};
+
+export type PaginatedProductResponse = {
+    currentPage: number;
+    limit: number;
+    totalItems: number;
+    totalPages: number;
+    items: ProductRecord[];
+};
+
 export type NewOrderPayload = {
     product_id: string;
     buyer: string;
@@ -338,6 +368,86 @@ export class ApiGateway {
         }
         catch(error: any) {
             throw new Error(error?.response?.data?.message || "Failed to get shop");
+        }
+    }
+
+    // ========== PRODUCT SERVICE ==========
+
+    async addProduct(payload: {
+        shop_id: string;
+        shop_owner: string;
+        product_img_link?: string | null;
+        category: string;
+        price: number;
+        description: string;
+        name: string;
+        tag?: string | null;
+        colors_list?: string | null;
+        size_list?: string | null;
+        material_list?: string | null;
+    }): Promise<ProductRecord> {
+        try {
+            const res = await axios.post(`${GATEWAY_BASE_URL}/api-gate/product-service/add-product`, payload);
+            return res.data?.result;
+        } catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to add product");
+        }
+    }
+
+    async updateProduct(payload: {
+        product_id: string;
+        shop_owner: string;
+        product_img_link?: string | null;
+        category?: string;
+        price?: number;
+        description?: string;
+        name?: string;
+        tag?: string | null;
+        colors_list?: string | null;
+        size_list?: string | null;
+        material_list?: string | null;
+    }): Promise<ProductRecord> {
+        try {
+            const res = await axios.patch(`${GATEWAY_BASE_URL}/api-gate/product-service/update-product`, payload);
+            return res.data?.result;
+        } catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to update product");
+        }
+    }
+
+    async deleteProduct(payload: { product_id: string; shop_owner: string; }): Promise<ProductRecord> {
+        try {
+            const res = await axios.post(`${GATEWAY_BASE_URL}/api-gate/product-service/delete-product`, payload);
+            return res.data?.result;
+        } catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to delete product");
+        }
+    }
+
+    async getProductById(payload: { product_id: string; }): Promise<ProductRecord> {
+        try {
+            const res = await axios.post(`${GATEWAY_BASE_URL}/api-gate/product-service/get-product-by-id`, payload);
+            return res.data?.result;
+        } catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to get product");
+        }
+    }
+
+    async searchProducts(payload: {
+        page?: number;
+        limit?: number;
+        query?: string;
+        category?: string;
+        shop_id?: string;
+        shop_owner?: string;
+        min_price?: number;
+        max_price?: number;
+    }): Promise<PaginatedProductResponse> {
+        try {
+            const res = await axios.post(`${GATEWAY_BASE_URL}/api-gate/product-service/search-products`, payload);
+            return res.data?.result;
+        } catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to search products");
         }
     }
 }

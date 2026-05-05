@@ -5,6 +5,7 @@ import { router as authGate } from "./routes/auth_service.router.js";
 import { router as cartGate } from "./routes/cart_service.route.js";
 import { router as orderGate } from "./routes/order_service.route.js";
 import { router as inventoryGate } from "./routes/inventory_service.route.js";
+import { router as productGate } from "./routes/product_service.route.js";
 dotenv.config();
 
 export const app = express();
@@ -24,6 +25,7 @@ app.use('/api-gate/auth-service', authGate);
 app.use('/api-gate/cart-service', cartGate);
 app.use('/api-gate/order-service', orderGate);
 app.use('/api-gate/inventory-service', inventoryGate);
+app.use('/api-gate/product-service', productGate);
 
 app.listen(PORT, () => {
   console.log(`🚀 GateWay running on port ${PORT}`);

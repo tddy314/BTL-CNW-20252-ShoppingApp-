@@ -41,8 +41,9 @@ import { useStore, type Product } from "@/lib/store"
 import { PublishProductDialog } from "@/components/publish-product-dialog"
 import { EditShopBankDialog, DeleteShopDialog } from "@/components/edit-shop-dialog"
 import { useRouter } from "next/navigation"
-import { ApiGateway } from "@/app/utils/api"
+import { ApiGateway, normalizeIdentifierToUuid, type ProductRecord } from "@/app/utils/api"
 import { useAuth } from "@/contexts/auth-context"
+import { FALLBACK_PRODUCT_IMAGE, mapApiProductToStoreProduct } from "@/lib/product-mapper"
 
 interface ShopPageProps {
   params: Promise<{ id: string }>
@@ -61,7 +62,7 @@ const api = new ApiGateway()
 
 export default function ShopPage({ params }: ShopPageProps) {
   const { id } = use(params)
-  const { getShopById, user, products, removeProduct } = useStore()
+  const { getShopById, user } = useStore()
   const { email } = useAuth()
   const [showPublishProduct, setShowPublishProduct] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
@@ -69,11 +70,26 @@ export default function ShopPage({ params }: ShopPageProps) {
   const [showEditBank, setShowEditBank] = useState(false)
   const [showDeleteShop, setShowDeleteShop] = useState(false)
   const [apiShop, setApiShop] = useState<ApiShopRecord | null>(null)
+  const [shopProducts, setShopProducts] = useState<Product[]>([])
   const [isShopLoading, setIsShopLoading] = useState(true)
   const [shopError, setShopError] = useState<string | null>(null)
   const router = useRouter()
 
   const storeShop = getShopById(id)
+
+  const fetchShopProducts = async () => {
+    try {
+      const result = await api.searchProducts({
+        page: 1,
+        limit: 200,
+        shop_id: normalizeIdentifierToUuid(id),
+      })
+      const mapped = (result?.items || []).map((item: ProductRecord) => mapApiProductToStoreProduct(item))
+      setShopProducts(mapped)
+    } catch {
+      setShopProducts([])
+    }
+  }
 
   useEffect(() => {
     let isActive = true
@@ -130,8 +146,9 @@ export default function ShopPage({ params }: ShopPageProps) {
       }
     : storeShop
 
-  // Get products for this shop
-  const shopProducts = products.filter((p) => p.shopId === id)
+  useEffect(() => {
+    fetchShopProducts()
+  }, [id])
 
   // Calculate stats
   const totalSold = shopProducts.reduce((acc, p) => acc + p.soldCount, 0)
@@ -474,6 +491,9 @@ export default function ShopPage({ params }: ShopPageProps) {
                             <img
                               src={product.image}
                               alt={product.name}
+                              onError={(event) => {
+                                event.currentTarget.src = FALLBACK_PRODUCT_IMAGE
+                              }}
                               className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                             />
                           </div>
@@ -505,7 +525,14 @@ export default function ShopPage({ params }: ShopPageProps) {
                             <Button
                               variant="destructive"
                               size="sm"
-                              onClick={() => removeProduct(product.id)}
+                              onClick={async () => {
+                                if (!email) return
+                                await api.deleteProduct({
+                                  product_id: product.id,
+                                  shop_owner: email,
+                                })
+                                fetchShopProducts()
+                              }}
                             >
                               <Trash2 className="w-4 h-4" />
                               Remove
@@ -572,6 +599,9 @@ export default function ShopPage({ params }: ShopPageProps) {
                                     <img
                                       src={product.image}
                                       alt={product.name}
+                                      onError={(event) => {
+                                        event.currentTarget.src = FALLBACK_PRODUCT_IMAGE
+                                      }}
                                       className="w-8 h-8 rounded object-cover"
                                     />
                                     <span className="truncate max-w-[150px]">
@@ -671,6 +701,7 @@ export default function ShopPage({ params }: ShopPageProps) {
         onOpenChange={setShowPublishProduct}
         shopId={id}
         shopName={shop.name}
+        onSaved={fetchShopProducts}
       />
 
       <PublishProductDialog
@@ -683,6 +714,7 @@ export default function ShopPage({ params }: ShopPageProps) {
         shopId={id}
         shopName={shop.name}
         existingProduct={editingProduct}
+        onSaved={fetchShopProducts}
       />
 
       {/* Edit Bank Info Dialog */}

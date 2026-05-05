@@ -5,6 +5,7 @@ import { Star, ShoppingCart } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import type { Product } from "@/lib/store"
+import { FALLBACK_PRODUCT_IMAGE } from "@/lib/product-mapper"
 
 interface ProductCardProps {
   product: Product
@@ -18,6 +19,9 @@ export function ProductCard({ product }: ProductCardProps) {
           <img
             src={product.image}
             alt={product.name}
+            onError={(event) => {
+              event.currentTarget.src = FALLBACK_PRODUCT_IMAGE
+            }}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         </div>
