@@ -8,9 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Header } from '@/components/header';
 import { SearchFilter } from '@/components/search-filter';
 import { Footer } from '@/components/footer';
-import { useStore, type Product } from '@/lib/store';
+import { type Product } from '@/lib/store';
+import { ApiGateway, type ProductRecord } from '@/app/utils/api';
+import { FALLBACK_PRODUCT_IMAGE, mapApiProductToStoreProduct } from '@/lib/product-mapper';
 
 const ITEMS_PER_PAGE = 12;
+const gatewayApi = new ApiGateway();
 
 function ProductsContent() {
   const sortOptions = [
@@ -20,10 +23,11 @@ function ProductsContent() {
     { label: 'Newest', value: 'newest' },
     { label: 'Popularity', value: 'popularity' },
   ];
-  const { products } = useStore();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>(products);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState('relevance');
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -31,6 +35,30 @@ function ProductsContent() {
   const category = searchParams.get('category');
   const shopName = searchParams.get('shop');
   const searchQuery = searchParams.get('q');
+
+  useEffect(() => {
+    const load = async () => {
+      setIsLoading(true);
+      try {
+        const result = await gatewayApi.searchProducts({
+          page: 1,
+          limit: 200,
+          category: category && category !== 'All Categories' && category !== 'all' ? category : undefined,
+          query: searchQuery || undefined,
+        });
+        let mapped = (result?.items || []).map((item: ProductRecord) => mapApiProductToStoreProduct(item));
+        if (shopName) {
+          mapped = mapped.filter((p) =>
+            p.shopName.toLowerCase().includes(shopName.toLowerCase())
+          );
+        }
+        setProducts(mapped);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, [category, searchQuery, shopName]);
 
   useEffect(() => {
     // Filter products based on search params
@@ -163,7 +191,9 @@ function ProductsContent() {
           </div>
 
           {/* Products Grid */}
-          {currentProducts.length > 0 ? (
+          {isLoading ? (
+            <div className="text-center py-12 text-muted-foreground">Loading products...</div>
+          ) : currentProducts.length > 0 ? (
             <>
              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-8">
   {currentProducts.map((product) => (
@@ -179,6 +209,9 @@ function ProductsContent() {
         <img
           src={product.image}
           alt={product.name}
+          onError={(event) => {
+            event.currentTarget.src = FALLBACK_PRODUCT_IMAGE;
+          }}
           className="w-full h-full object-cover"
         />
         {product.discount && (

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useStore } from '@/lib/store';
+import { categories } from '@/components/category-grid';
 
 interface SearchFilterProps {
   onSearch?: (filters: SearchFilters) => void;
@@ -18,13 +18,12 @@ export interface SearchFilters {
 }
 
 export function SearchFilter({ onSearch }: SearchFilterProps) {
-  const { products } = useStore();
   const [category, setCategory] = useState('All Categories');
   const [shopName, setShopName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
 
-  const categoryOptions = ['All Categories', ...Array.from(new Set(products.map((product) => product.category)))];
+  const categoryOptions = ['All Categories', ...categories.map((categoryItem) => categoryItem.id)];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

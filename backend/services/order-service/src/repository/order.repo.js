@@ -1,6 +1,7 @@
 import { supabaseUsers, supabaseAdmin } from "../config/database/supabase.config.js";
 
 const ORDER_TABLE = "order";
+const PRODUCT_TABLE = "products";
 
 function isValidPayment(payment) {
     return payment === 0 || payment === 1;
@@ -343,6 +344,30 @@ export class OrderRepository {
             .single();
 
         assertData(data, error);
+
+        const deliveredQuantity = Number(data.quantity || 0);
+        if (data.product_id && deliveredQuantity > 0) {
+            const { data: productRow, error: productFindError } = await supabaseUsers
+                .from(PRODUCT_TABLE)
+                .select("product_id,sold_count")
+                .eq("product_id", data.product_id)
+                .single();
+
+            if (productFindError) {
+                throw new Error(productFindError.message);
+            }
+
+            const currentSoldCount = Number(productRow?.sold_count || 0);
+            const { error: productUpdateError } = await supabaseAdmin
+                .from(PRODUCT_TABLE)
+                .update({ sold_count: currentSoldCount + deliveredQuantity })
+                .eq("product_id", data.product_id);
+
+            if (productUpdateError) {
+                throw new Error(productUpdateError.message);
+            }
+        }
+
         return data;
     }
 

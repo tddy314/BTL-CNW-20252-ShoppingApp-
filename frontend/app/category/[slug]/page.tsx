@@ -21,8 +21,10 @@ import { Header } from "@/components/header"
 import { ProductCard } from "@/components/product-card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useStore } from "@/lib/store"
+import { type Product } from "@/lib/store"
 import { categories } from "@/components/category-grid"
+import { ApiGateway, type ProductRecord } from "@/app/utils/api"
+import { mapApiProductToStoreProduct } from "@/lib/product-mapper"
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>
@@ -40,16 +42,36 @@ const sortOptions: { value: SortOption; label: string; icon: React.ElementType }
 
 export default function CategoryPage({ params }: CategoryPageProps) {
   const { slug } = use(params)
-  const { getProductsByCategory } = useStore()
+  const api = new ApiGateway()
 
   const [sortBy, setSortBy] = useState<SortOption>("popular")
   const [shopSearch, setShopSearch] = useState("")
   const [showMobileFilters, setShowMobileFilters] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
+  const [allProducts, setAllProducts] = useState<Product[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const PRODUCTS_PER_PAGE = 8
 
   const category = categories.find((c) => c.id === slug)
-  const allProducts = getProductsByCategory(slug)
+
+  useEffect(() => {
+    const load = async () => {
+      setIsLoading(true)
+      try {
+        const result = await api.searchProducts({
+          page: 1,
+          limit: 200,
+          category: slug,
+        })
+        setAllProducts((result.items || []).map((item: ProductRecord) => mapApiProductToStoreProduct(item)))
+      } catch {
+        setAllProducts([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    load()
+  }, [slug])
 
   // Filter and sort products
   const filteredProducts = useMemo(() => {
@@ -386,7 +408,9 @@ export default function CategoryPage({ params }: CategoryPageProps) {
           </div>
 
           {/* Products Grid */}
-          {filteredProducts.length > 0 ? (
+          {isLoading ? (
+            <div className="text-center py-16 text-muted-foreground">Loading products...</div>
+          ) : filteredProducts.length > 0 ? (
             <>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
                 {paginatedProducts.map((product) => (

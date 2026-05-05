@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Upload, Package } from "lucide-react"
+import { Package } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -21,9 +21,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { useStore } from "@/lib/store"
 import { categories } from "@/components/category-grid"
 import type { Product } from "@/lib/store"
+import { ApiGateway, normalizeIdentifierToUuid } from "@/app/utils/api"
+import { useAuth } from "@/contexts/auth-context"
 
 interface PublishProductDialogProps {
   open: boolean
@@ -31,7 +32,10 @@ interface PublishProductDialogProps {
   shopId: string
   shopName: string
   existingProduct?: Product | null
+  onSaved?: () => void
 }
+
+const api = new ApiGateway()
 
 export function PublishProductDialog({
   open,
@@ -39,19 +43,21 @@ export function PublishProductDialog({
   shopId,
   shopName,
   existingProduct,
+  onSaved,
 }: PublishProductDialogProps) {
-  const { addProductToShop, updateProduct } = useStore()
+  const { email } = useAuth()
   const [productName, setProductName] = useState("")
   const [price, setPrice] = useState("")
-  const [originalPrice, setOriginalPrice] = useState("")
   const [description, setDescription] = useState("")
   const [category, setCategory] = useState("")
   const [tags, setTags] = useState("")
   const [colors, setColors] = useState("")
   const [sizes, setSizes] = useState("")
   const [materials, setMaterials] = useState("")
-  const [productImage, setProductImage] = useState<string | null>(null)
+  const [productImage, setProductImage] = useState<string>("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [validationError, setValidationError] = useState<string | null>(null)
 
   const isEditMode = Boolean(existingProduct)
 
@@ -63,27 +69,25 @@ export function PublishProductDialog({
     if (existingProduct) {
       setProductName(existingProduct.name)
       setPrice(String(existingProduct.price))
-      setOriginalPrice(String(existingProduct.originalPrice || existingProduct.price))
       setDescription(existingProduct.description)
       setCategory(existingProduct.category)
       setTags(existingProduct.tags.join(", "))
       setColors((existingProduct.properties.colors || []).join(", "))
       setSizes((existingProduct.properties.sizes || []).join(", "))
       setMaterials((existingProduct.properties.materials || []).join(", "))
-      setProductImage(existingProduct.image)
+      setProductImage(existingProduct.image || "")
       return
     }
 
     setProductName("")
     setPrice("")
-    setOriginalPrice("")
     setDescription("")
     setCategory("")
     setTags("")
     setColors("")
     setSizes("")
     setMaterials("")
-    setProductImage(null)
+    setProductImage("")
   }, [existingProduct, open])
 
   const parseCSV = (value: string): string[] => {
@@ -93,70 +97,66 @@ export function PublishProductDialog({
       .filter(Boolean)
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setProductImage(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-
   const handleSubmit = async () => {
-    if (!productName.trim() || !price || !category || !productImage) return
+    setValidationError(null)
+    if (!email) {
+      setValidationError("You must be signed in to publish product.")
+      return
+    }
+    if (!productName.trim() || !price || !category || !description.trim()) {
+      setValidationError("Please fill all required fields: name, price, category, description.")
+      return
+    }
 
     setIsSubmitting(true)
+    setError(null)
 
     const parsedPrice = parseFloat(price)
-    const parsedOriginalPrice = originalPrice ? parseFloat(originalPrice) : parsedPrice
     const parsedTags = parseCSV(tags)
     const parsedColors = parseCSV(colors)
     const parsedSizes = parseCSV(sizes)
     const parsedMaterials = parseCSV(materials)
 
-    if (Number.isNaN(parsedPrice) || Number.isNaN(parsedOriginalPrice)) {
+    if (Number.isNaN(parsedPrice)) {
       setIsSubmitting(false)
+      setValidationError("Price must be a valid number.")
       return
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    const payload: Product = {
-      id: existingProduct?.id ?? `product-${Date.now()}`,
-      name: productName,
-      price: parsedPrice,
-      image: productImage,
-      category: category,
-      shopId: shopId,
-      shopName: shopName,
-      description: description,
-      soldCount: existingProduct?.soldCount ?? 0,
-      createdAt: existingProduct?.createdAt ?? new Date(),
-      tags: parsedTags,
-      rating: existingProduct?.rating ?? 0,
-      properties: {
-        colors: parsedColors,
-        sizes: parsedSizes,
-        materials: parsedMaterials,
-      },
-      originalPrice: parsedOriginalPrice,
-      shopRating: existingProduct?.shopRating ?? 0,
-      shopAvatar: existingProduct?.shopAvatar,
-      comments: existingProduct?.comments,
-      images: existingProduct?.images,
-      reviews: existingProduct?.reviews,
-      discount:
-        parsedOriginalPrice > 0 && parsedOriginalPrice > parsedPrice
-          ? Math.round(((parsedOriginalPrice - parsedPrice) / parsedOriginalPrice) * 100)
-          : 0,
-    }
-
-    if (existingProduct) {
-      updateProduct(existingProduct.id, payload)
-    } else {
-      addProductToShop(shopId, payload)
+    try {
+      if (existingProduct) {
+        await api.updateProduct({
+          product_id: existingProduct.id,
+          shop_owner: email,
+          product_img_link: productImage.trim() || null,
+          category,
+          price: parsedPrice,
+          description,
+          name: productName,
+          tag: parsedTags.join(", "),
+          colors_list: parsedColors.join(", "),
+          size_list: parsedSizes.join(", "),
+          material_list: parsedMaterials.join(", "),
+        })
+      } else {
+        await api.addProduct({
+          shop_id: normalizeIdentifierToUuid(shopId),
+          shop_owner: email,
+          product_img_link: productImage.trim() || null,
+          category,
+          price: parsedPrice,
+          description,
+          name: productName,
+          tag: parsedTags.join(", "),
+          colors_list: parsedColors.join(", "),
+          size_list: parsedSizes.join(", "),
+          material_list: parsedMaterials.join(", "),
+        })
+      }
+    } catch (err: any) {
+      setIsSubmitting(false)
+      setError(err?.message || "Failed to save product")
+      return
     }
 
     // Reset form
@@ -164,8 +164,9 @@ export function PublishProductDialog({
     setPrice("")
     setDescription("")
     setCategory("")
-    setProductImage(null)
+    setProductImage("")
     setIsSubmitting(false)
+    onSaved?.()
     onOpenChange(false)
   }
 
@@ -186,7 +187,7 @@ export function PublishProductDialog({
 
         <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
           <div className="space-y-2">
-            <Label htmlFor="productName">Product Name</Label>
+            <Label htmlFor="productName">Product Name *</Label>
             <Input
               id="productName"
               placeholder="Enter product name"
@@ -196,7 +197,7 @@ export function PublishProductDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="price">Price ($)</Label>
+            <Label htmlFor="price">Price ($) *</Label>
             <Input
               id="price"
               type="number"
@@ -209,20 +210,7 @@ export function PublishProductDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="originalPrice">Original Price ($)</Label>
-            <Input
-              id="originalPrice"
-              type="number"
-              placeholder="0.00"
-              min="0"
-              step="0.01"
-              value={originalPrice}
-              onChange={(e) => setOriginalPrice(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
+            <Label htmlFor="category">Category *</Label>
             <Select value={category} onValueChange={setCategory}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a category" />
@@ -238,7 +226,7 @@ export function PublishProductDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">Description *</Label>
             <Textarea
               id="description"
               placeholder="Describe your product..."
@@ -289,43 +277,39 @@ export function PublishProductDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Product Image</Label>
-            <div className="border-2 border-dashed rounded-lg p-6 text-center">
-              {productImage ? (
-                <div className="space-y-2">
-                  <img
-                    src={productImage}
-                    alt="Product preview"
-                    className="w-32 h-32 mx-auto object-cover rounded-lg"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setProductImage(null)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ) : (
-                <label
-                  htmlFor="imageUpload"
-                  className="cursor-pointer flex flex-col items-center gap-2"
-                >
-                  <Upload className="w-8 h-8 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    Click to upload product image
-                  </span>
-                  <input
-                    id="imageUpload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
-                </label>
-              )}
-            </div>
+            <Label htmlFor="productImageLink">Product Image Link</Label>
+            <Input
+              id="productImageLink"
+              type="url"
+              placeholder="https://example.com/product-image.jpg"
+              value={productImage}
+              onChange={(e) => setProductImage(e.target.value)}
+            />
+            {productImage ? (
+              <div className="mt-3">
+                <img
+                  src={productImage}
+                  alt="Product preview"
+                  className="w-32 h-32 object-cover rounded-lg border"
+                  onError={(e) => {
+                    ;(e.currentTarget as HTMLImageElement).style.display = "none"
+                  }}
+                />
+              </div>
+            ) : null}
           </div>
+
+          {validationError ? (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+              {validationError}
+            </div>
+          ) : null}
+
+          {error ? (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+              {error}
+            </div>
+          ) : null}
         </div>
 
         <DialogFooter>
@@ -338,7 +322,6 @@ export function PublishProductDialog({
               !productName.trim() ||
               !price ||
               !category ||
-              !productImage ||
               isSubmitting
             }
             className="bg-[#ee4d2d] hover:bg-[#d73211] text-white"
