@@ -1,65 +1,65 @@
 ﻿# BTL-CNW-20252 Shopping App
 
-## 1. Tong quan he thong
-Day la du an web thuong mai dien tu theo kien truc **microservices** gom:
-- **Frontend**: Next.js (React) cho giao dien nguoi dung.
-- **API Gateway**: gom va dieu phoi request tu frontend toi cac service backend.
-- **Backend Services**: moi nghiep vu tach thanh service rieng (auth, product, order, cart, inventory, review, notification, ...).
-- **Du lieu**:
-  - **Supabase**: du lieu chinh (user, san pham, don hang, shop, danh gia).
-  - **Redis**: gio hang va luu notification gan nhat theo user.
-  - **RabbitMQ**: hang doi su kien notification.
+## 1. Tổng quan hệ thống
+Đây là dự án web thương mại điện tử theo kiến trúc **microservices** gồm:
+- **Frontend**: Next.js (React) cho giao diện người dùng.
+- **API Gateway**: gom và điều phối request từ frontend tới các service backend.
+- **Backend Services**: mỗi nghiệp vụ tách thành service riêng (auth, product, order, cart, inventory, review, notification, ...).
+- **Dữ liệu**:
+  - **Supabase**: dữ liệu chính (user, sản phẩm, đơn hàng, shop, đánh giá).
+  - **Redis**: giỏ hàng và lưu notification gần nhất theo user.
+  - **RabbitMQ**: hàng đợi sự kiện notification.
 
 ---
 
-## 2. Kien truc chinh
+## 2. Kiến trúc chính
 ### Frontend (`/frontend`)
 - Next.js App Router.
-- Cac trang chinh: trang chu, san pham, chi tiet san pham, gio hang, xac nhan don, don hang, shop, thong bao.
-- Goi API qua `frontend/app/utils/api.ts`.
+- Các trang chính: trang chủ, sản phẩm, chi tiết sản phẩm, giỏ hàng, xác nhận đơn, đơn hàng, shop, thông báo.
+- Gọi API qua `frontend/app/utils/api.ts`.
 
 ### Gateway (`/backend/gateway`)
-- Nhan request tu frontend tai prefix `/api-gate/...`.
-- Chuyen tiep toi cac service tuong ung.
+- Nhận request từ frontend tại prefix `/api-gate/...`.
+- Chuyển tiếp tới các service tương ứng.
 
-### Cac service backend (`/backend/services`)
-- `auth-service`: dang ky/dang nhap.
-- `product-service`: CRUD va tim kiem san pham.
-- `inventory-service`: quan ly shop/profile.
-- `cart-service`: gio hang Redis.
-- `order-service`: tao/sua/huy don, seller accept/reject, admin ship/deliver.
-- `review-service`: danh gia san pham/shop.
-- `notification-service`: xu ly thong bao realtime + luu Redis + RabbitMQ consumer.
-- `payment-service`, `shipping-service` (phan mo rong nghiep vu).
+### Các service backend (`/backend/services`)
+- `auth-service`: đăng ký/đăng nhập.
+- `product-service`: CRUD và tìm kiếm sản phẩm.
+- `inventory-service`: quản lý shop/profile.
+- `cart-service`: giỏ hàng Redis.
+- `order-service`: tạo/sửa/hủy đơn, seller accept/reject, admin ship/deliver.
+- `review-service`: đánh giá sản phẩm/shop.
+- `notification-service`: xử lý thông báo realtime + lưu Redis + RabbitMQ consumer.
+- `payment-service`, `shipping-service` (phần mở rộng nghiệp vụ).
 
 ---
 
-## 3. Luong nghiep vu noi bat
-### Don hang
-1. User chon san pham va dat hang (qua gio hang hoac Buy Now).
-2. `order-service` tao order trang thai `pending`.
+## 3. Luồng nghiệp vụ nổi bật
+### Đơn hàng
+1. User chọn sản phẩm và đặt hàng (qua giỏ hàng hoặc Buy Now).
+2. `order-service` tạo order trạng thái `pending`.
 3. Seller accept/reject:
    - Accept -> `processing`
    - Reject -> `cancelled`
-4. Admin xu ly:
+4. Admin xử lý:
    - Ship -> `shipped`
    - Deliver -> `delivered`
 
 ### Notification
-- `order-service` phat su kien sang `notification-service` khi co thay doi quan trong (create/accept/reject/shipped/delivered/cancel).
+- `order-service` phát sự kiện sang `notification-service` khi có thay đổi quan trọng (create/accept/reject/shipped/delivered/cancel).
 - `notification-service`:
-  - Day message qua RabbitMQ
-  - Consumer nhan va luu Redis theo key `notifications:{userId}`
-  - Phat realtime qua Socket.IO
-- Frontend trang `/notifications` hien thi theo tab:
+  - Đẩy message qua RabbitMQ
+  - Consumer nhận và lưu Redis theo key `notifications:{userId}`
+  - Phát realtime qua Socket.IO
+- Frontend trang `/notifications` hiển thị theo tab:
   - Buyer
   - Seller
-  - Admin (neu role admin)
-- Co phan trang thong bao va giu toi da **50** thong bao moi nhat/user.
+  - Admin (nếu role admin)
+- Có phân trang thông báo và giữ tối đa **50** thông báo mới nhất/user.
 
 ---
 
-## 4. Cau truc thu muc
+## 4. Cấu trúc thư mục
 ```text
 .
 ├─ frontend/
@@ -80,44 +80,44 @@ Day la du an web thuong mai dien tu theo kien truc **microservices** gom:
 
 ---
 
-## 5. Cach chay co ban (local)
-### Yeu cau
+## 5. Cách chạy cơ bản (local)
+### Yêu cầu
 - Node.js 18+
 - Redis
 - RabbitMQ
-- Tai khoan Supabase + bien moi truong hop le
+- Tài khoản Supabase + biến môi trường hợp lệ
 
-### Chay frontend
+### Chạy frontend
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Frontend mac dinh chay o `http://localhost:8000`.
+Frontend mặc định chạy ở `http://localhost:8000`.
 
-### Chay backend (multi service)
+### Chạy backend (multi service)
 ```bash
 cd backend
 npm install
 npm run dev
 ```
-Lenh nay chay dong thoi gateway + cac service da cau hinh trong script.
+Lệnh này chạy đồng thời gateway + các service đã cấu hình trong script.
 
 ---
 
-## 6. Ghi chu cau hinh
-- Moi service co file `.env` rieng.
-- `notification-service` can dung cau hinh:
+## 6. Ghi chú cấu hình
+- Mỗi service có file `.env` riêng.
+- `notification-service` cần đúng cấu hình:
   - Redis endpoint/user/password
   - RabbitMQ URL
   - `NOTIFICATION_MAX_ITEMS=50`
-- Frontend co the can:
+- Frontend có thể cần:
   - `NEXT_PUBLIC_NOTIFICATION_SERVICE_URL=http://localhost:4000`
 
 ---
 
-## 7. Trang thai hien tai
-He thong da co cac chuc nang chinh cua mot san thuong mai dien tu mau:
-- Auth, san pham, gio hang, don hang, shop, danh gia.
-- Notification theo vai tro buyer/seller/admin.
-- Dieu huong tu notification toi trang nghiep vu tuong ung.
+## 7. Trạng thái hiện tại
+Hệ thống đã có các chức năng chính của một sàn thương mại điện tử mẫu:
+- Auth, sản phẩm, giỏ hàng, đơn hàng, shop, đánh giá.
+- Notification theo vai trò buyer/seller/admin.
+- Điều hướng từ notification tới trang nghiệp vụ tương ứng.
