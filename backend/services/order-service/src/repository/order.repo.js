@@ -3,6 +3,11 @@ import { supabaseUsers, supabaseAdmin } from "../config/database/supabase.config
 const ORDER_TABLE = "order";
 const PRODUCT_TABLE = "products";
 const SHOP_TABLE = "shop";
+const NOTIFICATION_SERVICE_URL = process.env.NOTIFICATION_SERVICE_URL || "http://localhost:4000/notification-service";
+const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 
 function isUuid(value) {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -122,6 +127,198 @@ function buildPageResult({ items, count, page, limit }) {
     };
 }
 
+async function publishNotification({
+    toUserId,
+    type,
+    title,
+    body,
+    data = {},
+}) {
+    if(!toUserId) {
+        return;
+    }
+
+    try {
+        await fetch(`${NOTIFICATION_SERVICE_URL}/publish`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                toUserId,
+                type,
+                title,
+                body,
+                data,
+            }),
+        });
+    } catch (error) {
+        console.error("Failed to publish notification:", error.message);
+    }
+}
+
+async function resolveShopOwnerByProductId(productId) {
+    if(!productId) return null;
+
+    const { data, error } = await supabaseUsers
+        .from(PRODUCT_TABLE)
+        .select("shop_owner")
+        .eq("product_id", productId)
+        .single();
+
+    if(error || !data?.shop_owner) {
+        return null;
+    }
+
+    return data.shop_owner;
+}
+
+async function notifyBuyerOrderCreated(order) {
+    await publishNotification({
+        toUserId: order.buyer,
+        type: "ORDER_CREATED",
+        title: `Order ${order.order_id} created`,
+        body: "Your order has been created successfully.",
+        data: {
+            channel: "buyer",
+            targetUrl: `/orders/${order.order_id}`,
+            orderId: order.order_id,
+            shopId: order.shop_id,
+        },
+    });
+}
+
+async function notifySellerNewOrder(order) {
+    const shopOwner = await resolveShopOwnerByProductId(order.product_id);
+    if(!shopOwner) return;
+
+    await publishNotification({
+        toUserId: shopOwner,
+        type: "SHOP_NEW_ORDER",
+        title: `New order ${order.order_id}`,
+        body: "Your shop has received a new order.",
+        data: {
+            channel: "seller",
+            targetUrl: `/shop/${order.shop_id}/orders`,
+            orderId: order.order_id,
+            shopId: order.shop_id,
+        },
+    });
+}
+
+async function notifyBuyerStatusChanged(order, statusText) {
+    await publishNotification({
+        toUserId: order.buyer,
+        type: "ORDER_STATUS_CHANGED",
+        title: `Order ${order.order_id} updated`,
+        body: `Your order is now ${statusText}.`,
+        data: {
+            channel: "buyer",
+            targetUrl: `/orders/${order.order_id}`,
+            orderId: order.order_id,
+            shopId: order.shop_id,
+            status: order.status,
+        },
+    });
+}
+
+async function notifyAdminsOrderAccepted(order) {
+    let adminUserIds = ADMIN_USER_IDS;
+
+    if(adminUserIds.length === 0) {
+        const { data, error } = await supabaseAdmin.auth.admin.listUsers();
+        if(error) {
+            console.error("Failed to resolve admin users:", error.message);
+            return;
+        }
+
+        adminUserIds = (data?.users || [])
+            .filter((user) => user?.user_metadata?.role === "admin")
+            .map((user) => String(user.email || "").trim())
+            .filter(Boolean);
+    }
+
+    if(adminUserIds.length === 0) {
+        console.warn("No admin user ids available for admin notifications");
+        return;
+    }
+
+    await Promise.all(
+        adminUserIds.map((adminUserId) =>
+            publishNotification({
+                toUserId: adminUserId,
+                type: "ADMIN_ORDER_ACCEPTED",
+                title: `Order ${order.order_id} accepted by seller`,
+                body: "A shop owner accepted a new order. Ready for admin shipping flow.",
+                data: {
+                    channel: "admin",
+                    targetUrl: "/admin/in-progress-orders",
+                    orderId: order.order_id,
+                    shopId: order.shop_id,
+                    status: order.status,
+                },
+            })
+        )
+    );
+}
+
+async function notifySellerOrderCancelledByBuyer(order) {
+    const shopOwner = await resolveShopOwnerByProductId(order.product_id);
+    if(!shopOwner) return;
+
+    await publishNotification({
+        toUserId: shopOwner,
+        type: "SHOP_ORDER_CANCELLED_BY_BUYER",
+        title: `Order ${order.order_id} cancelled by buyer`,
+        body: "A buyer cancelled an order from your shop.",
+        data: {
+            channel: "seller",
+            targetUrl: `/shop/${order.shop_id}/orders`,
+            orderId: order.order_id,
+            shopId: order.shop_id,
+            status: order.status,
+        },
+    });
+}
+
+async function notifyAdminsOrderCancelledByBuyer(order) {
+    let adminUserIds = ADMIN_USER_IDS;
+
+    if(adminUserIds.length === 0) {
+        const { data, error } = await supabaseAdmin.auth.admin.listUsers();
+        if(error) {
+            console.error("Failed to resolve admin users:", error.message);
+            return;
+        }
+
+        adminUserIds = (data?.users || [])
+            .filter((user) => user?.user_metadata?.role === "admin")
+            .map((user) => String(user.email || "").trim())
+            .filter(Boolean);
+    }
+
+    if(adminUserIds.length === 0) {
+        console.warn("No admin user ids available for admin notifications");
+        return;
+    }
+
+    await Promise.all(
+        adminUserIds.map((adminUserId) =>
+            publishNotification({
+                toUserId: adminUserId,
+                type: "ADMIN_ORDER_CANCELLED_BY_BUYER",
+                title: `Order ${order.order_id} cancelled by buyer`,
+                body: "A buyer cancelled an order. Please review impact in admin flow.",
+                data: {
+                    channel: "admin",
+                    targetUrl: "/admin/in-progress-orders",
+                    orderId: order.order_id,
+                    shopId: order.shop_id,
+                    status: order.status,
+                },
+            })
+        )
+    );
+}
+
 export class OrderRepository {
     async newOrder({
         product_id,
@@ -184,6 +381,8 @@ export class OrderRepository {
             .single();
 
         assertData(data, error);
+        await notifyBuyerOrderCreated(data);
+        await notifySellerNewOrder(data);
         return data;
     }
 
@@ -268,6 +467,8 @@ export class OrderRepository {
             .single();
 
         assertData(data, error);
+        await notifySellerOrderCancelledByBuyer(data);
+        await notifyAdminsOrderCancelledByBuyer(data);
         return data;
     }
 
@@ -304,6 +505,8 @@ export class OrderRepository {
             .single();
 
         assertData(data, error);
+        await notifyBuyerStatusChanged(data, "accepted");
+        await notifyAdminsOrderAccepted(data);
         return data;
     }
 
@@ -340,6 +543,7 @@ export class OrderRepository {
             .single();
 
         assertData(data, error);
+        await notifyBuyerStatusChanged(data, "rejected");
         return data;
     }
 
@@ -370,6 +574,7 @@ export class OrderRepository {
             .single();
 
         assertData(data, error);
+        await notifyBuyerStatusChanged(data, "shipped");
         return data;
     }
 
@@ -424,6 +629,7 @@ export class OrderRepository {
             }
         }
 
+        await notifyBuyerStatusChanged(data, "delivered");
         return data;
     }
 

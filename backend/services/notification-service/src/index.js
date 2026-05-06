@@ -1,55 +1,43 @@
-require('dotenv').config();
-const express = require('express');
-const http = require('http');
-const redisClient = require('./redisClient');
-const { createSocketServer } = require('./socket');
-const { startConsumer } = require('./rabbit');
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
+const http = require("http");
+const { router: notificationRouter } = require("./routes/notification.route");
+const { createSocketServer } = require("./socket/socket.server");
+const { NotificationConsumerService } = require("./services/notification-consumer.service");
+const { connectRedis } = require("./config/database/redis.config");
+
+const app = express();
+const server = http.createServer(app);
 
 const PORT = process.env.PORT || 4000;
-const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://localhost';
 
-async function main() {
-  const app = express();
-  const server = http.createServer(app);
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:8000",
+    credentials: true,
+  })
+);
 
-  const { io, emitToUser } = createSocketServer(server, redisClient);
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-  // Basic HTTP route for health
-  app.get('/health', (req, res) => res.json({ ok: true }));
+app.use("/notification-service", notificationRouter);
 
-  // Start RabbitMQ consumer
-  await startConsumer(RABBITMQ_URL, async (message) => {
-    // message expected: { toUserId, type, title, body, data, id, createdAt }
-    try {
-      const toUserId = String(message.toUserId || message.userId || message.to);
-      const key = `notifications:${toUserId}`;
-      const payload = {
-        id: message.id || `n_${Date.now()}`,
-        type: message.type || 'UNKNOWN',
-        title: message.title || '',
-        body: message.body || '',
-        data: message.data || {},
-        createdAt: message.createdAt || Date.now()
-      };
+async function bootstrap() {
+  await connectRedis();
+  const { emitToUser } = createSocketServer(server);
 
-      // store in Redis list (LPUSH) and keep max 100
-      await redisClient.lpush(key, JSON.stringify(payload));
-      await redisClient.ltrim(key, 0, 99);
-
-      // try to emit realtime to connected sockets
-      const sent = await emitToUser(toUserId, 'notification', payload);
-      console.log('Delivered to user?', toUserId, sent);
-    } catch (err) {
-      console.error('Error handling notification message', err);
-    }
-  });
+  const consumerService = new NotificationConsumerService(emitToUser);
+  await consumerService.start();
 
   server.listen(PORT, () => {
-    console.log(`Notification service listening on port ${PORT}`);
+    console.log(`Notification Service running on port ${PORT}`);
+    console.log(`API available at http://localhost:${PORT}/notification-service`);
   });
 }
 
-main().catch((err) => {
-  console.error('Service failed to start', err);
+bootstrap().catch((error) => {
+  console.error("Failed to start notification service:", error.message);
   process.exit(1);
 });

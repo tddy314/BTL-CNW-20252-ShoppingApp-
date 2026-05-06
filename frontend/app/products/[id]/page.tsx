@@ -143,6 +143,44 @@ export default function ProductDetailPage() {
     }
   }
 
+  const handleBuyNow = () => {
+    if (!product) {
+      return;
+    }
+
+    if (!isLoggedIn || !email) {
+      alert('Please sign in before creating an order.');
+      return;
+    }
+
+    const query = new URLSearchParams({
+      from: "buy-now",
+      productId: product.id,
+      productName: product.name,
+      image: product.image,
+      price: String(product.price),
+      category: product.category,
+      quantity: String(quantity),
+      shopId: product.shopId,
+      shopName: product.shopName,
+      color: selectedColor || "",
+      size: selectedSize || "",
+      material: selectedMaterial || "",
+    });
+
+    router.push(`/confirm-order?${query.toString()}`);
+  };
+
+  const handleShareProduct = async () => {
+    try {
+      const productUrl = `${window.location.origin}/products/${productId}`;
+      await navigator.clipboard.writeText(productUrl);
+      alert("Product link copied to clipboard.");
+    } catch {
+      alert("Unable to copy product link.");
+    }
+  };
+
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading product...</div>;
   }
@@ -395,10 +433,7 @@ export default function ProductDetailPage() {
                 Add to Cart
               </Button>
               <Button
-                onClick={() => {
-                  // Buy now logic
-                  alert(`Proceeding to checkout for ${quantity} ${product.name}(s)`);
-                }}
+                onClick={handleBuyNow}
                 className="flex-1 bg-primary hover:bg-primary/90 text-white py-3 text-lg font-semibold"
               >
                 Buy Now
@@ -416,7 +451,10 @@ export default function ProductDetailPage() {
             </div>
 
             {/* Share */}
-            <button className="flex items-center justify-center gap-2 py-2 text-primary hover:bg-primary/5 rounded-lg transition-colors">
+            <button
+              onClick={handleShareProduct}
+              className="flex items-center justify-center gap-2 py-2 text-primary hover:bg-primary/5 rounded-lg transition-colors"
+            >
               <Share2 className="w-4 h-4" />
               Share Product
             </button>
