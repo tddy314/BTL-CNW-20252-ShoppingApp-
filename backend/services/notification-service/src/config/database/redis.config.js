@@ -26,4 +26,4 @@ const redisClient = {
   lrange: (...args) => client.lRange(...args),
 };
 
-module.exports = { redisClient, connectRedis };
+module.exports = { redisClient, connectRedis }
