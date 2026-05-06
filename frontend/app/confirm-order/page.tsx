@@ -92,6 +92,20 @@ function ConfirmOrderPageContent() {
   const { isLoggedIn, email } = useAuth()
 
   const cartItemId = searchParams.get("cartItemId")
+  const from = searchParams.get("from")
+  const isBuyNowFlow = from === "buy-now"
+
+  const buyNowProductId = searchParams.get("productId") || ""
+  const buyNowProductName = searchParams.get("productName") || ""
+  const buyNowImage = searchParams.get("image") || ""
+  const buyNowPrice = Number(searchParams.get("price") || 0)
+  const buyNowCategory = searchParams.get("category") || ""
+  const buyNowQuantity = Math.max(1, Number(searchParams.get("quantity") || 1))
+  const buyNowShopId = searchParams.get("shopId") || ""
+  const buyNowShopName = searchParams.get("shopName") || ""
+  const buyNowColor = searchParams.get("color") || ""
+  const buyNowSize = searchParams.get("size") || ""
+  const buyNowMaterial = searchParams.get("material") || ""
 
   const [cartItem, setCartItem] = useState<CartApiItem | null>(null)
   const [receiver, setReceiver] = useState("")
@@ -105,6 +119,32 @@ function ConfirmOrderPageContent() {
   const [errorMessage, setErrorMessage] = useState("")
 
   useEffect(() => {
+    if (isBuyNowFlow) {
+      const syntheticItem: CartApiItem = {
+        cartItemId: "buy-now",
+        shop: {
+          shopId: buyNowShopId || undefined,
+          shopName: buyNowShopName || undefined,
+        },
+        productDetail: {
+          productId: buyNowProductId || undefined,
+          productName: buyNowProductName || undefined,
+          image: buyNowImage || undefined,
+          price: buyNowPrice || 0,
+          category: buyNowCategory || undefined,
+          quantity: buyNowQuantity,
+          selectedOptions: {
+            color: buyNowColor || undefined,
+            size: buyNowSize || undefined,
+            material: buyNowMaterial || undefined,
+          },
+        },
+      }
+
+      setCartItem(syntheticItem)
+      return
+    }
+
     const loadCartItem = async () => {
       if (!email || !cartItemId) {
         return
@@ -128,14 +168,29 @@ function ConfirmOrderPageContent() {
     }
 
     loadCartItem()
-  }, [email, cartItemId])
+  }, [
+    email,
+    cartItemId,
+    isBuyNowFlow,
+    buyNowShopId,
+    buyNowShopName,
+    buyNowProductId,
+    buyNowProductName,
+    buyNowImage,
+    buyNowPrice,
+    buyNowCategory,
+    buyNowQuantity,
+    buyNowColor,
+    buyNowSize,
+    buyNowMaterial,
+  ])
 
   const quantity = Number(cartItem?.productDetail?.quantity || 1)
   const unitPrice = Number(cartItem?.productDetail?.price || 0)
   const totalPrice = unitPrice * quantity
 
   const canSubmit = useMemo(() => {
-    if (!isLoggedIn || !email || !cartItemId || !cartItem) {
+    if (!isLoggedIn || !email || !cartItem) {
       return false
     }
 
@@ -148,10 +203,10 @@ function ConfirmOrderPageContent() {
     }
 
     return true
-  }, [isLoggedIn, email, cartItemId, cartItem, receiver, phone, address, paymentMethod, bankName, bankNumber])
+  }, [isLoggedIn, email, cartItem, receiver, phone, address, paymentMethod, bankName, bankNumber])
 
   const handleCreateOrder = async () => {
-    if (!canSubmit || !email || !cartItemId || !cartItem) {
+    if (!canSubmit || !email || !cartItem) {
       return
     }
 
@@ -184,7 +239,9 @@ function ConfirmOrderPageContent() {
         shop_id: normalizeIdentifierToUuid(shop.shopId),
       })
 
-      await gatewayApi.removeItemFromCart(email, cartItemId)
+      if (!isBuyNowFlow && cartItemId) {
+        await gatewayApi.removeItemFromCart(email, cartItemId)
+      }
       router.push("/orders")
     } catch (error: any) {
       setErrorMessage(error?.message || "Unable to create order")
@@ -356,8 +413,8 @@ function ConfirmOrderPageContent() {
               </Card>
 
               <Card className="p-4 border border-border bg-muted/30 text-sm text-foreground">
-                <p><span className="font-medium">Source:</span> Cart page</p>
-                <p><span className="font-medium">Cart Item ID:</span> {cartItemId ?? "N/A"}</p>
+                <p><span className="font-medium">Source:</span> {isBuyNowFlow ? "Buy Now" : "Cart page"}</p>
+                <p><span className="font-medium">Cart Item ID:</span> {isBuyNowFlow ? "N/A" : (cartItemId ?? "N/A")}</p>
               </Card>
             </div>
           </div>

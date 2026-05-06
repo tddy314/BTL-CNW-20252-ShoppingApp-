@@ -38,7 +38,7 @@ export function Header() {
           <span className="hidden md:block">Welcome to ShopHub - Your Ultimate Shopping Destination!</span>
           <div className="flex gap-4">
             <button className="hover:opacity-90 transition-opacity">Support</button>
-            <button className="hover:opacity-90 transition-opacity">Sell</button>
+            <button onClick={() => handleNavigation('/my-shops')} className="hover:opacity-90 transition-opacity">Sell</button>
           </div>
         </div>
       </div>

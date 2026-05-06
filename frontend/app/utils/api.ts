@@ -2,6 +2,7 @@ import axios from "axios";
 
 const GATEWAY_URL = process.env.API_GATEWAY_URL;
 const GATEWAY_BASE_URL = GATEWAY_URL || "http://localhost:8080";
+const NOTIFICATION_SERVICE_BASE_URL = process.env.NEXT_PUBLIC_NOTIFICATION_SERVICE_URL || "http://localhost:4000";
 
 export type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled";
 
@@ -89,6 +90,29 @@ export type PaginatedReviewResponse = {
     totalItems: number;
     totalPages: number;
     items: ReviewRecord[];
+};
+
+export type NotificationRecord = {
+    id: string;
+    type: string;
+    title: string;
+    body: string;
+    data?: {
+        channel?: "buyer" | "seller" | "admin" | string;
+        targetUrl?: string;
+        orderId?: string;
+        shopId?: string;
+        status?: string;
+    };
+    createdAt: string | number;
+};
+
+export type PaginatedNotificationResponse = {
+    currentPage: number;
+    limit: number;
+    totalItems: number;
+    totalPages: number;
+    items: NotificationRecord[];
 };
 
 export type NewOrderPayload = {
@@ -563,6 +587,29 @@ export class ApiGateway {
             return res.data?.result;
         } catch(error: any) {
             throw new Error(error?.response?.data?.message || "Failed to get shop rating");
+        }
+    }
+
+    // ========== NOTIFICATION SERVICE ==========
+    async readNotifications(payload: {
+        userId: string;
+        channel?: "buyer" | "seller" | "admin";
+        page?: number;
+        limit?: number;
+    }): Promise<PaginatedNotificationResponse> {
+        try {
+            const res = await axios.get(`${NOTIFICATION_SERVICE_BASE_URL}/notification-service/read-notifications`, {
+                params: payload,
+            });
+            return res.data?.result || {
+                currentPage: 1,
+                limit: Number(payload.limit || 10),
+                totalItems: 0,
+                totalPages: 1,
+                items: [],
+            };
+        } catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to read notifications");
         }
     }
 }
