@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 
 interface AuthContextType {
   isLoggedIn: boolean;
@@ -46,6 +46,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<string>('guest');
   const [jwtToken, setJwtToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const logout = useCallback(() => {
+    setIsLoggedIn(false);
+    setEmail(null);
+    setRole('guest');
+    setJwtToken(null);
+
+    localStorage.removeItem('email');
+    localStorage.removeItem('role');
+    localStorage.removeItem('token');
+  }, []);
 
   useEffect(() => {
     const savedToken = localStorage.getItem('token');
@@ -96,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [jwtToken]);
+  }, [jwtToken, logout]);
 
   const login = (email: string, role: string, jwt: string) => {
     setRole(role);
@@ -107,17 +118,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('token', jwt);
     localStorage.setItem('role', role);
     localStorage.setItem('email', email);
-  };
-
-  const logout = () => {
-    setIsLoggedIn(false);
-    setEmail(null);
-    setRole('guest');
-    setJwtToken(null);
-
-    localStorage.removeItem('email');
-    localStorage.removeItem('role');
-    localStorage.removeItem('token');
   };
 
   return (

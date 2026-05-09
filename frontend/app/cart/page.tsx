@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { ArrowLeft, ArrowUpDown, Clock3, CreditCard, Filter, ShoppingCart, Tag, Trash2 } from "lucide-react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
@@ -80,7 +80,7 @@ export default function CartPage() {
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [errorMessage, setErrorMessage] = useState<string>("")
 
-  const fetchCart = async (page: number) => {
+  const fetchCart = useCallback(async (page: number) => {
     if (!email) {
       return
     }
@@ -103,7 +103,7 @@ export default function CartPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [email, ITEMS_PER_PAGE])
 
   useEffect(() => {
     if (!isLoggedIn || !email) {
@@ -114,7 +114,7 @@ export default function CartPage() {
     }
 
     fetchCart(currentPage)
-  }, [currentPage, isLoggedIn, email])
+  }, [currentPage, isLoggedIn, email, fetchCart])
 
   const handleRemoveFromCart = async (cartItemId: string) => {
     if (!email) {
@@ -193,9 +193,7 @@ export default function CartPage() {
   }, 0)
 
   useEffect(() => {
-    if (currentPage !== 1) {
-      setCurrentPage(1)
-    }
+    setCurrentPage(1)
   }, [sortBy, categoryFilter])
 
   useEffect(() => {

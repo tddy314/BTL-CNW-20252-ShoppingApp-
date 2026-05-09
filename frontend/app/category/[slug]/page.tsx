@@ -42,7 +42,7 @@ const sortOptions: { value: SortOption; label: string; icon: React.ElementType }
 
 export default function CategoryPage({ params }: CategoryPageProps) {
   const { slug } = use(params)
-  const api = new ApiGateway()
+  const api = useMemo(() => new ApiGateway(), [])
 
   const [sortBy, setSortBy] = useState<SortOption>("popular")
   const [shopSearch, setShopSearch] = useState("")
@@ -71,7 +71,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
       }
     }
     load()
-  }, [slug])
+  }, [slug, api])
 
   // Filter and sort products
   const filteredProducts = useMemo(() => {
