@@ -89,12 +89,12 @@ export default function CartPage() {
     setErrorMessage("")
 
     try {
-      const result = await gatewayApi.readCart(email, page, ITEMS_PER_PAGE)
-      const items = (result?.items || []) as BackendCartItem[]
+      const result = await gatewayApi.readCart(email, page, ITEMS_PER_PAGE);
+      const items = (result?.items || []) as BackendCartItem[];
 
-      setCartItems(items)
-      setTotalPages(Math.max(1, Number(result?.totalPages || 1)))
-      setTotalItems(Number(result?.totalItems || 0))
+      setCartItems(items);
+      setTotalPages(Math.max(1, Number(result?.totalPages || 1)));
+      setTotalItems(Number(result?.totalItems || 0));
     } catch (error: any) {
       setCartItems([])
       setTotalPages(1)
