@@ -15,7 +15,7 @@ function createMockRes() {
       this.body = payload;
       return this;
     },
-  };
+  }
 }
 
 test("signIn should return 500 when email or password is missing", async () => {
@@ -27,4 +27,4 @@ test("signIn should return 500 when email or password is missing", async () => {
 
   assert.equal(res.statusCode, 500);
   assert.match(String(res.body?.message || ""), /No data found/i);
-});
+})
