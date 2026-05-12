@@ -11,7 +11,7 @@ export interface ProductComment {
   text: string
   createdAt: Date
 }
-export type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled"
+export type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled" | "rejected"
 export interface Product {
   id: string
   name: string
@@ -827,7 +827,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     today.setHours(0, 0, 0, 0)
     return orders.filter(
       (order) =>
-        (order.status === "delivered" || order.status === "cancelled") &&
+        (order.status === "delivered" || order.status === "cancelled" || order.status === "rejected") &&
         order.updatedAt >= today
     )
   }

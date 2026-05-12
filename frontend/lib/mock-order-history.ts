@@ -1,7 +1,7 @@
 export type MockPaymentMethod = "cash" | "momo" | "bank-transfer"
 export type MockMomoStatus = "success" | "pending"
 export type MockBankTransferStatus = "pending" | "verified"
-export type MockOrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled"
+export type MockOrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled" | "rejected"
 
 export interface MockOrderItem {
   productId: string

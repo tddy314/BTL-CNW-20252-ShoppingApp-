@@ -135,12 +135,6 @@ export default function LoginPage() {
           </button>
         </p>
 
-        {/* Demo Info */}
-        <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-xs text-blue-700">
-            <span className="font-semibold">Demo mode:</span> Use any Email (min 3 chars) and password (min 6 chars)
-          </p>
-        </div>
       </div>
     </div>
   );

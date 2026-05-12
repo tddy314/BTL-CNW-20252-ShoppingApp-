@@ -206,12 +206,6 @@ export default function NewPasswordPage() {
           )}
         </div>
 
-        {/* Demo Info */}
-        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-xs text-blue-700">
-            <span className="font-semibold">Demo mode:</span> Enter any password (min 6 characters) to continue
-          </p>
-        </div>
       </div>
     </main>
   );

@@ -413,7 +413,7 @@ export class OrderRepository {
             throw new Error("Only buyer can modify this order");
         }
 
-        if(["shipped", "delivered", "cancelled"].includes(existingOrder.status)) {
+        if(["shipped", "delivered", "cancelled", "rejected"].includes(existingOrder.status)) {
             throw new Error("This order can no longer be modified");
         }
 
@@ -454,7 +454,7 @@ export class OrderRepository {
             throw new Error("Only buyer can cancel this order");
         }
 
-        if(["shipped", "delivered", "cancelled"].includes(existingOrder.status)) {
+        if(["shipped", "delivered", "cancelled", "rejected"].includes(existingOrder.status)) {
             throw new Error("This order can no longer be cancelled");
         }
 
@@ -536,7 +536,7 @@ export class OrderRepository {
 
         const { data, error } = await supabaseAdmin
             .from(ORDER_TABLE)
-            .update({ status: "cancelled" })
+            .update({ status: "rejected" })
             .eq("order_id", order_id)
             .eq("seller", seller)
             .select()

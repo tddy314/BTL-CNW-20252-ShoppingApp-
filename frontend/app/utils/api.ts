@@ -4,7 +4,7 @@ const GATEWAY_URL = process.env.API_GATEWAY_URL;
 const GATEWAY_BASE_URL = GATEWAY_URL || "http://localhost:8080";
 const NOTIFICATION_SERVICE_BASE_URL = process.env.NEXT_PUBLIC_NOTIFICATION_SERVICE_URL || "http://localhost:4000";
 
-export type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled";
+export type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled" | "rejected";
 
 export type OrderRecord = {
     id: string;

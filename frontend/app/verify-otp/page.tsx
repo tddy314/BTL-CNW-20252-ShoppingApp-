@@ -192,12 +192,6 @@ export default function VerifyOTPPage() {
           )}
         </div>
 
-        {/* Demo Info */}
-        <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-xs text-blue-700">
-            <span className="font-semibold">Demo mode:</span> Enter any 6 digits to verify
-          </p>
-        </div>
       </div>
     </div>
   );

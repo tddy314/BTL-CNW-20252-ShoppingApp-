@@ -104,8 +104,8 @@ export default function OrderDetailPage() {
     loadOrder()
   }, [orderId, email, isLoggedIn])
 
-  const canEdit = Boolean(order && !["shipped", "delivered", "cancelled"].includes(order.status))
-  const canCancel = Boolean(order && !["shipped", "delivered", "cancelled"].includes(order.status))
+  const canEdit = Boolean(order && !["shipped", "delivered", "cancelled", "rejected"].includes(order.status))
+  const canCancel = Boolean(order && !["shipped", "delivered", "cancelled", "rejected"].includes(order.status))
 
   const handleSave = async () => {
     if (!order || !email || !canEdit) {
@@ -196,7 +196,7 @@ export default function OrderDetailPage() {
               <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
                 <div>
                   <h1 className="text-2xl font-bold text-foreground">Order {order.order_id}</h1>
-                  <p className="text-sm text-muted-foreground mt-1">You can update receiver info while order is not shipped/delivered/cancelled.</p>
+                  <p className="text-sm text-muted-foreground mt-1">You can update receiver info while order is not shipped/delivered/cancelled/rejected.</p>
                 </div>
 
                 <Badge variant="secondary" className="capitalize">{order.status}</Badge>
