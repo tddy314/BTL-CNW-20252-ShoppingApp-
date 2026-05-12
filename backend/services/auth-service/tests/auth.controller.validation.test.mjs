@@ -8,12 +8,12 @@ function createMockRes() {
     statusCode: 200,
     body: null,
     status(code) {
-      this.statusCode = code;
+      this.statusCode = code
       return this;
     },
     json(payload) {
-      this.body = payload;
-      return this;
+      this.body = payload
+      return this
     },
   }
 }
