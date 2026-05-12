@@ -44,9 +44,11 @@ export class CartGateWay {
             const {
                 email,
                 page, 
-                limit
+                limit,
+                sortBy,
+                category
             } = req.body;
-            const result = await this.cart_service.readCart(email, page, limit);
+            const result = await this.cart_service.readCart(email, page, limit, sortBy, category);
             return res.status(200).json({message: "Ok", result});
         }
         catch(error) {

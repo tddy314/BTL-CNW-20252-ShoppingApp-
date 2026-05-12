@@ -221,13 +221,19 @@ export class ApiGateway {
     async readCart(
         email: string,
         page: number,
-        limit: number
+        limit: number,
+        options?: {
+            sortBy?: "latest" | "oldest" | "price-asc" | "price-desc";
+            category?: string;
+        }
     ) {
         try {
             const res = await axios.post(`${GATEWAY_BASE_URL}/api-gate/cart-service/read-cart`, {
                 email,
                 page,
-                limit
+                limit,
+                sortBy: options?.sortBy || "latest",
+                category: options?.category || "all",
             });
 
             return res.data?.result;

@@ -15,6 +15,7 @@ type CartSortOption = "latest" | "oldest" | "price-asc" | "price-desc"
 
 type BackendCartItem = {
   cartItemId: string
+  addedAt?: string
   shop?: {
     shopId?: string
     shopName?: string
@@ -89,7 +90,10 @@ export default function CartPage() {
     setErrorMessage("")
 
     try {
-      const result = await gatewayApi.readCart(email, page, ITEMS_PER_PAGE);
+      const result = await gatewayApi.readCart(email, page, ITEMS_PER_PAGE, {
+        sortBy,
+        category: categoryFilter,
+      });
       const items = (result?.items || []) as BackendCartItem[];
 
       setCartItems(items);
@@ -103,7 +107,7 @@ export default function CartPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [email, ITEMS_PER_PAGE])
+  }, [email, ITEMS_PER_PAGE, sortBy, categoryFilter])
 
   useEffect(() => {
     if (!isLoggedIn || !email) {
@@ -144,8 +148,7 @@ export default function CartPage() {
         id: item.cartItemId,
         productId: detail.productId || item.cartItemId,
         quantity: Number(detail.quantity || 1),
-        // Backend cart item currently has no timestamp; we derive a stable display ordering from response index.
-        addedAt: new Date(Date.now() - index * 1000),
+        addedAt: item.addedAt ? new Date(item.addedAt) : new Date(Date.now() - index * 1000),
         selectedColor: options.color,
         selectedSize: options.size,
         selectedMaterial: options.material,
@@ -159,36 +162,15 @@ export default function CartPage() {
   }, [cartItems])
 
   const categories = useMemo<string[]>(() => {
-    const unique = Array.from(new Set(displayItems.map((item) => item.category)))
+    const uniqueSet = new Set(displayItems.map((item) => item.category))
+    if (categoryFilter !== "all") {
+      uniqueSet.add(categoryFilter)
+    }
+    const unique = Array.from(uniqueSet)
     return ["all", ...unique]
-  }, [displayItems])
+  }, [displayItems, categoryFilter])
 
-  const filteredAndSortedItems = useMemo(() => {
-    const filtered =
-      categoryFilter === "all"
-        ? displayItems
-        : displayItems.filter((item) => item.category === categoryFilter)
-
-    const sorted = [...filtered]
-
-    sorted.sort((a, b) => {
-      switch (sortBy) {
-        case "oldest":
-          return a.addedAt.getTime() - b.addedAt.getTime()
-        case "price-asc":
-          return a.price - b.price
-        case "price-desc":
-          return b.price - a.price
-        case "latest":
-        default:
-          return b.addedAt.getTime() - a.addedAt.getTime()
-      }
-    })
-
-    return sorted
-  }, [categoryFilter, displayItems, sortBy])
-
-  const cartTotal = filteredAndSortedItems.reduce((total, item) => {
+  const cartTotal = displayItems.reduce((total, item) => {
     return total + item.price * item.quantity
   }, 0)
 
@@ -201,8 +183,6 @@ export default function CartPage() {
       setCurrentPage(totalPages)
     }
   }, [currentPage, totalPages])
-
-  const paginatedItems = filteredAndSortedItems
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -279,9 +259,10 @@ export default function CartPage() {
 
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
             <p className="text-sm text-muted-foreground">
-              Showing {paginatedItems.length} of {totalItems} item{totalItems === 1 ? "" : "s"}
+              Showing {displayItems.length} item{displayItems.length === 1 ? "" : "s"} on this page
+              {categoryFilter !== "all" ? ` (filtered from ${totalItems} total)` : ` of ${totalItems} total`}
             </p>
-            <p className="text-sm font-semibold text-foreground">Filtered total: {formatCurrency(cartTotal)}</p>
+            <p className="text-sm font-semibold text-foreground">Page total: {formatCurrency(cartTotal)}</p>
           </div>
 
           {errorMessage ? (
@@ -296,7 +277,7 @@ export default function CartPage() {
             </Card>
           ) : null}
 
-          {filteredAndSortedItems.length === 0 ? (
+          {displayItems.length === 0 ? (
             <Card className="border border-dashed border-border p-10 text-center">
               <ShoppingCart className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
               <h2 className="text-lg font-semibold text-foreground mb-1">No products in this filter</h2>
@@ -305,7 +286,7 @@ export default function CartPage() {
           ) : (
             <>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                {paginatedItems.map((item) => {
+                {displayItems.map((item) => {
                 const itemTotal = item.price * item.quantity
 
                 return (

@@ -37,12 +37,14 @@ export class CallCart {
     }
 
     
-    async readCart(email, page, limit) {
+    async readCart(email, page, limit, sortBy = "latest", category = "all") {
     try {
         const res = await axios.post("http://localhost:3001/cart-service/get-cart", {      
             email,
             page,
-            limit
+            limit,
+            sortBy,
+            category
         });
         //console.log("Response:", res.data);
         //console.log(res.data.result.items)

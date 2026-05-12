@@ -46,13 +46,15 @@ export class CartController {
             const {
                 email,
                 page, 
-                limit
+                limit,
+                sortBy,
+                category
             } = req.body
             //console.log(email, page, limit);
             if(!email || !page || !limit) {
                 throw new Error("No information found!");
             }
-            const result = await this.cartRepo.getCart(email, page, limit);
+            const result = await this.cartRepo.getCart(email, page, limit, sortBy, category);
             res.status(200).json({message: "OK", result});
         }
         catch(error) {
