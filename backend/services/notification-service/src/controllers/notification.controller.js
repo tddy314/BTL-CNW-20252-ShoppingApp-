@@ -28,10 +28,11 @@ class NotificationController {
   }
 
   async publishNotification(req, res) {
+    const notification = normalizeIncomingNotification(req.body || {});
+    const routingKey = req.body?.routingKey || "notification.created";
+
     try {
-      const notification = normalizeIncomingNotification(req.body || {});
       const channel = await getRabbitChannel();
-      const routingKey = req.body?.routingKey || "notification.created";
 
       channel.publish(
         NOTIFICATION_EXCHANGE,
@@ -45,7 +46,17 @@ class NotificationController {
         result: notification,
       });
     } catch (error) {
-      return res.status(400).json({ message: "Error: " + error.message });
+      try {
+        await this.notificationRepo.saveNotification(notification.toUserId, notification);
+        return res.status(200).json({
+          message: "Notification stored (RabbitMQ unavailable)",
+          result: notification,
+        });
+      } catch (fallbackError) {
+        return res.status(400).json({
+          message: "Error: " + (fallbackError?.message || error?.message),
+        });
+      }
     }
   }
 

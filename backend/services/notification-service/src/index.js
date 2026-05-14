@@ -38,6 +38,9 @@ async function bootstrap() {
 }
 
 bootstrap().catch((error) => {
-  console.error("Failed to start notification service:", error.message);
+  console.error("Failed to start notification service:", error?.message || error);
+  if (error?.stack) {
+    console.error(error.stack);
+  }
   process.exit(1);
 });
