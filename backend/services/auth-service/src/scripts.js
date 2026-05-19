@@ -1,26 +1,35 @@
 import { supabaseAdmin } from "./config/database/supabase.config.js";
 
-async function signUpAsAdmin(email, password) {
-    const { data, error } = await supabaseAdmin.auth.signUp({
-        email: email,
-        password: password,
-        options: {
-            data: {
-                role: 'admin', // Bạn tự định nghĩa key và value ở đây
-                //full_name: 'Nguyen Van A'
-            }
-        }
-    })
+async function createAdminUser(email, password) {
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+            role: "admin",
+        },
+    });
 
     if (error) {
-        console.error('Lỗi đăng ký:', error.message)
+        console.error("Create admin failed:", error.message);
         throw new Error(error.message);
     }
-    else console.log('Đăng ký thành công, kiểm tra email của bạn!', data)
-    return data
+
+    console.log("Create admin success:", data.user?.email, data.user?.id);
+    return data;
 }
 
-signUpAsAdmin("admin1@gmail.com", "123456")
-await signUpAsAdmin("admin2@gmail.com", "123456")
-await signUpAsAdmin("admin3@gmail.com", "123456")
-await signUpAsAdmin("admin4@gmail.com", "123456")
+const admins = [
+    { email: "admin1@gmail.com", password: "123456" },
+    { email: "admin2@gmail.com", password: "123456" },
+    { email: "admin3@gmail.com", password: "123456" },
+    { email: "admin4@gmail.com", password: "123456" },
+];
+
+for (const admin of admins) {
+    try {
+        await createAdminUser(admin.email, admin.password);
+    } catch (error) {
+        console.error(`Skip ${admin.email}: ${error.message}`);
+    }
+}

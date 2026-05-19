@@ -33,8 +33,18 @@ export default function LoginPage() {
       router.push('/');
     }
     catch(error: any) {
-      console.log(error.message);
-      setError("Wrong email or password, please check again! " + error.message );
+      const message = String(error?.message || "Login failed");
+      if (message.toLowerCase().includes("email not confirmed")) {
+        setError("Please verify your email first. Check your inbox, then try signing in again.");
+        return;
+      }
+
+      if (message.toLowerCase().includes("invalid login credentials")) {
+        setError("Wrong email or password, please check again.");
+        return;
+      }
+
+      setError(message);
     }
   };
 

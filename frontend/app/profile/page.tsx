@@ -25,6 +25,28 @@ export default function ProfilePage() {
   const [ordersCount, setOrdersCount] = useState(0)
   const [profileName, setProfileName] = useState(user?.name || '')
   const [profileAvatar, setProfileAvatar] = useState(user?.avatar || '')
+  const [passwordResetLoading, setPasswordResetLoading] = useState(false)
+  const [passwordResetMessage, setPasswordResetMessage] = useState('')
+  const [passwordResetError, setPasswordResetError] = useState('')
+
+  const handleSendPasswordReset = async () => {
+    if (!email || passwordResetLoading) return
+
+    setPasswordResetLoading(true)
+    setPasswordResetMessage('')
+    setPasswordResetError('')
+
+    try {
+      const origin = typeof window !== 'undefined' ? window.location.origin : ''
+      const redirectTo = `${origin}/new-password`
+      await api.forgotPassword(email, redirectTo)
+      setPasswordResetMessage('Password reset link sent. Please check your email inbox.')
+    } catch (err: any) {
+      setPasswordResetError(String(err?.message || 'Failed to send password reset email'))
+    } finally {
+      setPasswordResetLoading(false)
+    }
+  }
 
   useEffect(() => {
     const loadCounts = async () => {
@@ -257,6 +279,22 @@ export default function ProfilePage() {
               <span className="font-semibold text-slate-900">
                 {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
               </span>
+            </div>
+            <div className="pt-2">
+              <Button
+                type="button"
+                onClick={handleSendPasswordReset}
+                disabled={passwordResetLoading || !email}
+                className="w-full sm:w-auto"
+              >
+                {passwordResetLoading ? 'Sending reset email...' : 'Send Password Reset Email'}
+              </Button>
+              {passwordResetMessage ? (
+                <p className="mt-2 text-sm text-green-700">{passwordResetMessage}</p>
+              ) : null}
+              {passwordResetError ? (
+                <p className="mt-2 text-sm text-red-700">{passwordResetError}</p>
+              ) : null}
             </div>
           </div>
         </Card>

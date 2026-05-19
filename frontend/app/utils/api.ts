@@ -178,7 +178,7 @@ export class ApiGateway {
             return res.data.data;
         }
         catch(error: any) {
-            throw new Error("Error: " + error);
+            throw new Error(error?.response?.data?.message || "Failed to sign in");
         }
     }
 
@@ -195,7 +195,46 @@ export class ApiGateway {
             return res.data.data;
         }
         catch(error: any) {
-            throw new Error("Error: " + error);
+            throw new Error(error?.response?.data?.message || "Failed to sign up");
+        }
+    }
+
+    async forgotPassword(email: string, redirectTo: string) {
+        try {
+            const res = await axios.post(`${GATEWAY_BASE_URL}/api-gate/auth-service/forgot-password`, {
+                email,
+                redirectTo,
+            });
+            return res.data;
+        }
+        catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to send reset password email");
+        }
+    }
+
+    async refreshPassword(accessToken: string, newPassword: string) {
+        try {
+            const res = await axios.post(`${GATEWAY_BASE_URL}/api-gate/auth-service/refresh-password`, {
+                accessToken,
+                newPassword,
+            });
+            return res.data;
+        }
+        catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to update password");
+        }
+    }
+
+    async verifyEmailLink(tokenHash: string, type: string = "signup") {
+        try {
+            const res = await axios.post(`${GATEWAY_BASE_URL}/api-gate/auth-service/verify-email-link`, {
+                tokenHash,
+                type,
+            });
+            return res.data;
+        }
+        catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to verify email link");
         }
     }
 

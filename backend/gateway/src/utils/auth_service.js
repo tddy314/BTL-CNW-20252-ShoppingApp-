@@ -3,6 +3,12 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const URL = process.env.AUTH_SERVICE_URL;
+function buildError(error) {
+    const message = error?.response?.data?.message || error?.message || "Unknown error";
+    const wrapped = new Error(message);
+    wrapped.status = error?.response?.status || 500;
+    return wrapped;
+}
 
 export class CallAuth {
     async signIn(email, password) {
@@ -21,7 +27,7 @@ export class CallAuth {
         }
         catch(error) {
             console.log(error);
-            throw new Error(error.message);
+            throw buildError(error);
         }
     }
 
@@ -37,7 +43,46 @@ export class CallAuth {
         }
         catch(error) {
             console.log(error);
-            throw new Error(error.message);
+            throw buildError(error);
+        }
+    }
+
+    async forgotPassword(email, redirectTo) {
+        try {
+            const res = await axios.post(`${URL}/auth-service/forgot-password`, {
+                email,
+                redirectTo,
+            });
+            return res.data;
+        }
+        catch (error) {
+            throw buildError(error);
+        }
+    }
+
+    async refreshPassword(accessToken, newPassword) {
+        try {
+            const res = await axios.post(`${URL}/auth-service/refresh-password`, {
+                accessToken,
+                newPassword,
+            });
+            return res.data;
+        }
+        catch (error) {
+            throw buildError(error);
+        }
+    }
+
+    async verifyEmailLink(tokenHash, type = "signup") {
+        try {
+            const res = await axios.post(`${URL}/auth-service/verify-email-link`, {
+                tokenHash,
+                type,
+            });
+            return res.data;
+        }
+        catch (error) {
+            throw buildError(error);
         }
     }
 }

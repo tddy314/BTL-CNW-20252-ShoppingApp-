@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Mail, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ApiGateway } from '../utils/api';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function ForgotPasswordPage() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const api = new ApiGateway();
 
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -32,12 +34,16 @@ export default function ForgotPasswordPage() {
     }
 
     setLoading(true);
-
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const redirectTo = `${origin}/new-password`;
+      await api.forgotPassword(email, redirectTo);
       setLoading(false);
       setSubmitted(true);
-    }, 1500);
+    } catch (err: any) {
+      setLoading(false);
+      setError(String(err?.message || 'Failed to send reset link'));
+    }
   };
 
   return (

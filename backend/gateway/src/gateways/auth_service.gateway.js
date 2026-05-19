@@ -33,7 +33,7 @@ export class AuthGateWay {
             });
         }
         catch(error) {
-            return res.status(500).json({message: "Error: " + error.message});
+            return res.status(error.status || 500).json({message: "Error: " + error.message});
         }
     }
     async signUp(req, res) {
@@ -51,7 +51,47 @@ export class AuthGateWay {
             });
         }
         catch(error) {
-            return res.status(500).json({message: "Error: " + error.message});
+            return res.status(error.status || 500).json({message: "Error: " + error.message});
+        }
+    }
+
+    async forgotPassword(req, res) {
+        try {
+            const { email, redirectTo } = req.body;
+            if (!email) throw new Error("email is required");
+            const result = await this.auth_service.forgotPassword(email, redirectTo);
+            return res.status(200).json(result);
+        }
+        catch (error) {
+            return res.status(error.status || 500).json({message: "Error: " + error.message});
+        }
+    }
+
+    async refreshPassword(req, res) {
+        try {
+            const { accessToken, newPassword } = req.body;
+            if (!accessToken || !newPassword) {
+                throw new Error("accessToken and newPassword are required");
+            }
+            const result = await this.auth_service.refreshPassword(accessToken, newPassword);
+            return res.status(200).json(result);
+        }
+        catch (error) {
+            return res.status(error.status || 500).json({message: "Error: " + error.message});
+        }
+    }
+
+    async verifyEmailLink(req, res) {
+        try {
+            const { tokenHash, type } = req.body;
+            if (!tokenHash) {
+                throw new Error("tokenHash is required");
+            }
+            const result = await this.auth_service.verifyEmailLink(tokenHash, type || "signup");
+            return res.status(200).json(result);
+        }
+        catch (error) {
+            return res.status(error.status || 500).json({message: "Error: " + error.message});
         }
     }
 }

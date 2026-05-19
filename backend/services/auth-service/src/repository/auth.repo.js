@@ -1,5 +1,33 @@
 import { supabaseUsers, supabaseAdmin } from "../config/database/supabase.config.js";
 
+function normalizeEmail(email) {
+    return String(email || "").trim().toLowerCase();
+}
+
+async function findAuthUserByEmail(email) {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) return null;
+
+    let page = 1;
+    const perPage = 1000;
+
+    while (true) {
+        const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+        if (error) {
+            throw new Error(error.message);
+        }
+
+        const users = data?.users || [];
+        const matched = users.find(
+            (user) => normalizeEmail(user.email) === normalizedEmail
+        );
+        if (matched) return matched;
+        if (users.length < perPage) return null;
+
+        page += 1;
+    }
+}
+
 async function upsertProfileOnSignup(email) {
     const { error } = await supabaseAdmin
         .from("profile")
@@ -19,6 +47,12 @@ async function upsertProfileOnSignup(email) {
 
 export class AuthServiceRepository {
     async signUp(email, password, emailRedirectTo) {
+        const normalizedEmail = normalizeEmail(email);
+        const existingUser = await findAuthUserByEmail(normalizedEmail);
+        if (existingUser) {
+            throw new Error("Email already registered");
+        }
+
         const signUpOptions = {
             data: {
                 role: "user",
@@ -29,7 +63,7 @@ export class AuthServiceRepository {
         }
 
         const { data, error } = await supabaseUsers.auth.signUp({
-            email,
+            email: normalizedEmail,
             password,
             options: signUpOptions,
         });
@@ -38,13 +72,14 @@ export class AuthServiceRepository {
             throw new Error(error.message);
         }
 
-        await upsertProfileOnSignup(email);
+        await upsertProfileOnSignup(normalizedEmail);
         return data;
     }
 
     async signIn(email, password) {
+        const normalizedEmail = normalizeEmail(email);
         const { data, error } = await supabaseUsers.auth.signInWithPassword({
-            email,
+            email: normalizedEmail,
             password,
         });
 
@@ -56,8 +91,14 @@ export class AuthServiceRepository {
     }
 
     async signUpAsAdmin(email, password) {
+        const normalizedEmail = normalizeEmail(email);
+        const existingUser = await findAuthUserByEmail(normalizedEmail);
+        if (existingUser) {
+            throw new Error("Email already registered");
+        }
+
         const { data, error } = await supabaseUsers.auth.signUp({
-            email,
+            email: normalizedEmail,
             password,
             options: {
                 data: {
@@ -70,7 +111,7 @@ export class AuthServiceRepository {
             throw new Error(error.message);
         }
 
-        await upsertProfileOnSignup(email);
+        await upsertProfileOnSignup(normalizedEmail);
         return data;
     }
 
@@ -105,6 +146,19 @@ export class AuthServiceRepository {
             email,
             token,
             type: "email",
+        });
+
+        if (error) {
+            throw new Error(error.message);
+        }
+
+        return data;
+    }
+
+    async verifyEmailLink(tokenHash, type = "signup") {
+        const { data, error } = await supabaseUsers.auth.verifyOtp({
+            token_hash: tokenHash,
+            type,
         });
 
         if (error) {

@@ -21,7 +21,8 @@ export class AuthController {
             });
         } 
         catch(error) {
-            res.status(500).json({message: "Error: " + error.message});
+            const isDuplicate = String(error.message || "").includes("Email already registered");
+            res.status(isDuplicate ? 409 : 500).json({message: "Error: " + error.message});
         }
     }
 
@@ -36,7 +37,8 @@ export class AuthController {
             res.status(200).json({message: "Sucess sign up", data});
         } 
         catch(error) {
-            res.status(500).json({message: "Error: " + error.message});
+            const isDuplicate = String(error.message || "").includes("Email already registered");
+            res.status(isDuplicate ? 409 : 500).json({message: "Error: " + error.message});
         }
     }
 
@@ -49,6 +51,9 @@ export class AuthController {
             if(!email || !password) throw new Error("No data found");
 
             const result = await this.authRepo.signIn(email, password);
+            if (!result?.session?.access_token || !result?.user) {
+                throw new Error("Unable to sign in");
+            }
 
             const payload = {
                 userId: result.user.id,
@@ -65,7 +70,11 @@ export class AuthController {
             });
         } 
         catch(error) {
-            res.status(500).json({message: "Error: " + error.message});
+            const message = String(error.message || "");
+            const isUnverified = message.toLowerCase().includes("email not confirmed");
+            const isInvalidCredentials = message.toLowerCase().includes("invalid login credentials");
+            const status = isUnverified ? 403 : (isInvalidCredentials ? 401 : 500);
+            res.status(status).json({message: "Error: " + message});
         }
     }
 
@@ -130,6 +139,24 @@ export class AuthController {
             const result = await this.authRepo.verifyEmailOtp(email, token);
             return res.status(200).json({
                 message: "OTP verified",
+                data: result,
+            });
+        }
+        catch(error) {
+            return res.status(400).json({message: "Error: " + error.message});
+        }
+    }
+
+    async verifyEmailLink(req, res) {
+        try {
+            const { tokenHash, type } = req.body;
+            if(!tokenHash) {
+                throw new Error("tokenHash is required");
+            }
+
+            const result = await this.authRepo.verifyEmailLink(tokenHash, type || "signup");
+            return res.status(200).json({
+                message: "Email link verified",
                 data: result,
             });
         }

@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Lock, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ApiGateway } from '../utils/api';
 
 export default function NewPasswordPage() {
   const router = useRouter();
@@ -15,6 +16,27 @@ export default function NewPasswordPage() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [accessToken, setAccessToken] = useState('');
+  const api = new ApiGateway();
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+    const params = new URLSearchParams(hash);
+    const tokenFromHash = params.get('access_token');
+    if (tokenFromHash) {
+      setAccessToken(tokenFromHash);
+      return;
+    }
+
+    const tokenFromQuery = new URLSearchParams(window.location.search).get('access_token');
+    if (tokenFromQuery) {
+      setAccessToken(tokenFromQuery);
+      return;
+    }
+
+    setError('Invalid or expired reset link. Please request a new password reset email.');
+  }, []);
 
   const validatePassword = (password: string) => {
     return password.length >= 6;
@@ -43,14 +65,20 @@ export default function NewPasswordPage() {
       setError('Passwords do not match');
       return;
     }
+    if (!accessToken) {
+      setError('Invalid or expired reset link. Please request a new password reset email.');
+      return;
+    }
 
     setLoading(true);
-
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      await api.refreshPassword(accessToken, newPassword);
       setLoading(false);
       setSubmitted(true);
-    }, 1500);
+    } catch (err: any) {
+      setLoading(false);
+      setError(String(err?.message || 'Failed to update password'));
+    }
   };
 
   return (

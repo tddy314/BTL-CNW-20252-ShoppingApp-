@@ -30,6 +30,7 @@ export default function RegisterPage() {
     confirmPassword: '',
   });
   const [errors, setErrors] = useState<Partial<FormData>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const api = new ApiGateway();
 
@@ -80,6 +81,7 @@ export default function RegisterPage() {
 
   const handleRegister = async(e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
 
     if (!validateForm()) {
       return;
@@ -90,16 +92,29 @@ export default function RegisterPage() {
     //sessionStorage.setItem('registrationUsername', formData.username);
 
     try {
+      setIsSubmitting(true);
       await api.signUp(formData.email, formData.password);
-
+      window.alert('Account created successfully. Please verify your email before signing in.');
+      router.push('/login');
     }
     catch(error : any) {
-      console.log(error.message);
-      setErrors(error);
-    }
+      const message = String(error?.message || 'Sign up failed');
+      if (message.toLowerCase().includes('email already registered')) {
+        setErrors((prev) => ({
+          ...prev,
+          email: 'This email is already registered. Please use another email or sign in.',
+        }));
+        return;
+      }
 
-    // Redirect to OTP verification page
-    router.push('/');
+      setErrors((prev) => ({
+        ...prev,
+        email: message,
+      }));
+    }
+    finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -286,9 +301,10 @@ export default function RegisterPage() {
           {/* Register Button */}
           <Button
             type="submit"
+            disabled={isSubmitting}
             className="w-full bg-gradient-to-r from-primary to-secondary text-white font-semibold py-3 rounded-lg hover:shadow-lg transition-all duration-300 mt-8"
           >
-            Create Account
+            {isSubmitting ? 'Creating account...' : 'Create Account'}
           </Button>
         </form>
 
