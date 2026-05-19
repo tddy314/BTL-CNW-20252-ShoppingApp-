@@ -57,6 +57,13 @@ export default function InProgressOrdersPage() {
 
   useEffect(() => {
     const loadOrders = async () => {
+      if (role !== 'admin') {
+        setOrders([])
+        setTotalPages(1)
+        setIsLoading(false)
+        return
+      }
+
       setIsLoading(true)
       setErrorMessage('')
 
@@ -78,7 +85,7 @@ export default function InProgressOrdersPage() {
     }
 
     loadOrders()
-  }, [currentPage])
+  }, [currentPage, role])
 
   const visibleOrders = useMemo(() => {
     return orders
