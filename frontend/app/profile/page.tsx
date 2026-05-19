@@ -23,6 +23,8 @@ export default function ProfilePage() {
   const [editNameOpen, setEditNameOpen] = useState(false)
   const [shopsCount, setShopsCount] = useState(0)
   const [ordersCount, setOrdersCount] = useState(0)
+  const [totalSpend, setTotalSpend] = useState(0)
+  const [purchasesCount, setPurchasesCount] = useState(0)
   const [profileName, setProfileName] = useState(user?.name || '')
   const [profileAvatar, setProfileAvatar] = useState(user?.avatar || '')
   const [passwordResetLoading, setPasswordResetLoading] = useState(false)
@@ -53,20 +55,37 @@ export default function ProfilePage() {
       if (!isLoggedIn || !email) {
         setShopsCount(0)
         setOrdersCount(0)
+        setTotalSpend(0)
+        setPurchasesCount(0)
         return
       }
 
       try {
-        const [shopsResult, ordersResult] = await Promise.all([
+        const [shopsResult, firstOrdersPage] = await Promise.all([
           api.getShopsByOwner({ owner: email, page: 1, limit: 1 }),
-          api.readOrdersByBuyer({ buyer: email, page: 1, limit: 1 }),
+          api.readOrdersByBuyer({ buyer: email, page: 1, limit: 100 }),
         ])
 
+        const totalPages = Number(firstOrdersPage?.totalPages || 1)
+        const orderItems = [...(firstOrdersPage?.items || [])]
+        if (totalPages > 1) {
+          for (let page = 2; page <= totalPages; page += 1) {
+            const nextPage = await api.readOrdersByBuyer({ buyer: email, page, limit: 100 })
+            orderItems.push(...(nextPage?.items || []))
+          }
+        }
+
+        const spend = orderItems.reduce((sum, order) => sum + Number(order?.price || 0), 0)
+
         setShopsCount(Number(shopsResult?.totalItems || 0))
-        setOrdersCount(Number(ordersResult?.totalItems || 0))
+        setOrdersCount(Number(firstOrdersPage?.totalItems || 0))
+        setTotalSpend(spend)
+        setPurchasesCount(orderItems.length)
       } catch {
         setShopsCount(0)
         setOrdersCount(0)
+        setTotalSpend(0)
+        setPurchasesCount(0)
       }
     }
 
@@ -168,7 +187,7 @@ export default function ProfilePage() {
               <div className={`grid grid-cols-1 sm:grid-cols-2 ${isAdmin ? 'xl:grid-cols-4' : 'xl:grid-cols-3'} gap-3`}>
                 <div className={`rounded-2xl p-4 bg-gradient-to-br from-orange-500 to-rose-500 text-white shadow-lg ${!isAdmin ? 'xl:col-span-1' : ''}`}>
                   <div className="text-2xl font-extrabold">
-                    ${user.totalSpend.toFixed(2)}
+                    ${totalSpend.toFixed(2)}
                   </div>
                   <p className="text-sm text-orange-50/90">Total Spend</p>
                 </div>
@@ -180,7 +199,7 @@ export default function ProfilePage() {
                 </div>
                 <div className={`rounded-2xl p-4 bg-gradient-to-br from-blue-500 to-indigo-500 text-white shadow-lg ${!isAdmin ? 'sm:col-span-2 xl:col-span-1' : ''}`}>
                   <div className="text-2xl font-extrabold">
-                    {user.purchasedProductIds.length}
+                    {purchasesCount}
                   </div>
                   <p className="text-sm text-blue-50/90">Purchases</p>
                 </div>
