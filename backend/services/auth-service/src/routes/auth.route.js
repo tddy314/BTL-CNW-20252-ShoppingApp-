@@ -9,4 +9,6 @@ router.post('/sign-up', controller.signUp.bind(controller));
 router.post('/sign-in', controller.signIn.bind(controller));
 router.post('/forgot-password', controller.forgotPassword.bind(controller));
 router.post('/refresh-password', controller.refreshPassword.bind(controller));
+router.post('/send-email-otp', controller.sendEmailOtp.bind(controller));
+router.post('/verify-email-otp', controller.verifyEmailOtp.bind(controller));
 //router.post('/sign-up-as-admin', controller.signUpAsAdmin.bind(controller));

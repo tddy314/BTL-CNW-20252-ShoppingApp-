@@ -82,12 +82,33 @@ export class AuthServiceRepository {
             throw new Error(error.message);
         }
 
-        const isVerified = Boolean(
-            data?.user?.email_confirmed_at ||
-            data?.user?.confirmed_at
-        );
-        if (!isVerified) {
-            throw new Error("Email is not verified. Please verify your email before signing in.");
+        return data;
+    }
+
+    async sendEmailOtp(email) {
+        const { data, error } = await supabaseUsers.auth.signInWithOtp({
+            email,
+            options: {
+                shouldCreateUser: false,
+            },
+        });
+
+        if (error) {
+            throw new Error(error.message);
+        }
+
+        return data;
+    }
+
+    async verifyEmailOtp(email, token) {
+        const { data, error } = await supabaseUsers.auth.verifyOtp({
+            email,
+            token,
+            type: "email",
+        });
+
+        if (error) {
+            throw new Error(error.message);
         }
 
         return data;

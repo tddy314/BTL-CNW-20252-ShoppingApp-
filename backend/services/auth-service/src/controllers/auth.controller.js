@@ -104,4 +104,37 @@ export class AuthController {
             res.status(400).json({message: "Error: " + error.message});
         }
     }
+
+    async sendEmailOtp(req, res) {
+        try {
+            const { email } = req.body;
+            if(!email) {
+                throw new Error("email is required");
+            }
+
+            await this.authRepo.sendEmailOtp(email);
+            return res.status(200).json({ message: "OTP sent to email" });
+        }
+        catch(error) {
+            return res.status(400).json({message: "Error: " + error.message});
+        }
+    }
+
+    async verifyEmailOtp(req, res) {
+        try {
+            const { email, token } = req.body;
+            if(!email || !token) {
+                throw new Error("email and token are required");
+            }
+
+            const result = await this.authRepo.verifyEmailOtp(email, token);
+            return res.status(200).json({
+                message: "OTP verified",
+                data: result,
+            });
+        }
+        catch(error) {
+            return res.status(400).json({message: "Error: " + error.message});
+        }
+    }
 }
