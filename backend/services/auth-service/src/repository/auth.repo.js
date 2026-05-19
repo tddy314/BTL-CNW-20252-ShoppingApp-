@@ -18,15 +18,20 @@ async function upsertProfileOnSignup(email) {
 }
 
 export class AuthServiceRepository {
-    async signUp(email, password) {
+    async signUp(email, password, emailRedirectTo) {
+        const signUpOptions = {
+            data: {
+                role: "user",
+            },
+        };
+        if (emailRedirectTo) {
+            signUpOptions.emailRedirectTo = emailRedirectTo;
+        }
+
         const { data, error } = await supabaseUsers.auth.signUp({
             email,
             password,
-            options: {
-                data: {
-                    role: "user",
-                },
-            },
+            options: signUpOptions,
         });
 
         if (error) {
@@ -75,6 +80,14 @@ export class AuthServiceRepository {
 
         if (error) {
             throw new Error(error.message);
+        }
+
+        const isVerified = Boolean(
+            data?.user?.email_confirmed_at ||
+            data?.user?.confirmed_at
+        );
+        if (!isVerified) {
+            throw new Error("Email is not verified. Please verify your email before signing in.");
         }
 
         return data;

@@ -9,11 +9,16 @@ export class AuthController {
         try {
             const {
                 email,
-                password
+                password,
+                emailRedirectTo,
             } = req.body;
             if(!email || !password) throw new Error("No data found");
-            const data = await this.authRepo.signUp(email, password);
-            res.status(200).json({message: "Sucess sign up", data});
+            const redirectTo = emailRedirectTo || process.env.EMAIL_REDIRECT_TO;
+            const data = await this.authRepo.signUp(email, password, redirectTo);
+            res.status(200).json({
+                message: "Sign up successful. Please check your email to verify your account.",
+                data
+            });
         } 
         catch(error) {
             res.status(500).json({message: "Error: " + error.message});
