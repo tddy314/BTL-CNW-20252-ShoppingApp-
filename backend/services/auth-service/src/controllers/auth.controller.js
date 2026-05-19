@@ -63,4 +63,40 @@ export class AuthController {
             res.status(500).json({message: "Error: " + error.message});
         }
     }
+
+    async forgotPassword(req, res) {
+        try {
+            const {
+                email,
+                redirectTo,
+            } = req.body;
+
+            if(!email) throw new Error("email is required");
+
+            await this.authRepo.forgotPassword(email, redirectTo);
+            return res.status(200).json({ message: "Reset password email sent" });
+        }
+        catch(error) {
+            res.status(400).json({message: "Error: " + error.message});
+        }
+    }
+
+    async refreshPassword(req, res) {
+        try {
+            const {
+                accessToken,
+                newPassword,
+            } = req.body;
+
+            if(!accessToken || !newPassword) {
+                throw new Error("accessToken and newPassword are required");
+            }
+
+            const result = await this.authRepo.refreshPassword(accessToken, newPassword);
+            return res.status(200).json({ message: "Password updated", data: result });
+        }
+        catch(error) {
+            res.status(400).json({message: "Error: " + error.message});
+        }
+    }
 }

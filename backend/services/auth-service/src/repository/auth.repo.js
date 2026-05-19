@@ -68,4 +68,33 @@ export class AuthServiceRepository {
         await upsertProfileOnSignup(email);
         return data;
     }
+
+    async forgotPassword(email, redirectTo) {
+        const options = redirectTo ? { redirectTo } : undefined;
+        const { data, error } = await supabaseUsers.auth.resetPasswordForEmail(email, options);
+
+        if (error) {
+            throw new Error(error.message);
+        }
+
+        return data;
+    }
+
+    async refreshPassword(accessToken, newPassword) {
+        const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(accessToken);
+        if (userError || !userData?.user?.id) {
+            throw new Error(userError?.message || "Invalid or expired access token");
+        }
+
+        const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
+            userData.user.id,
+            { password: newPassword }
+        );
+
+        if (error) {
+            throw new Error(error.message);
+        }
+
+        return data;
+    }
 }
