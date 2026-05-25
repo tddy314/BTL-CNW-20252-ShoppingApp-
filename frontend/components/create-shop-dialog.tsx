@@ -25,7 +25,8 @@ interface CreateShopDialogProps {
 const api = new ApiGateway()
 
 export function CreateShopDialog({ open, onOpenChange }: CreateShopDialogProps) {
-  const { email } = useAuth()
+  const { email, role } = useAuth()
+  const isAdmin = role === "admin"
   const [shopName, setShopName] = useState("")
   const [bankAccount, setBankAccount] = useState("")
   const [bankAccountNumber, setBankAccountNumber] = useState("")
@@ -33,6 +34,10 @@ export function CreateShopDialog({ open, onOpenChange }: CreateShopDialogProps) 
   const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async () => {
+    if (isAdmin) {
+      setError("Admin account cannot create shops")
+      return
+    }
     if (!shopName.trim() || !bankAccount.trim() || !bankAccountNumber.trim() || !email) return
 
     setIsSubmitting(true)
@@ -123,7 +128,7 @@ export function CreateShopDialog({ open, onOpenChange }: CreateShopDialogProps) 
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!shopName.trim() || !bankAccount.trim() || !bankAccountNumber.trim() || isSubmitting}
+            disabled={isAdmin || !shopName.trim() || !bankAccount.trim() || !bankAccountNumber.trim() || isSubmitting}
             className="bg-[#ee4d2d] hover:bg-[#d73211] text-white"
           >
             {isSubmitting ? "Creating..." : "Create Shop"}

@@ -9,6 +9,7 @@ router.patch("/modify-order", controller.modifyOrder.bind(controller));
 router.patch("/cancel-order", controller.cancelOrder.bind(controller));
 router.patch("/seller-accept-order", controller.sellerAcceptOrder.bind(controller));
 router.patch("/seller-reject-order", controller.sellerRejectOrder.bind(controller));
+router.patch("/seller-refund-cancelled-order", controller.sellerRefundCancelledOrder.bind(controller));
 router.patch("/admin-ship-order", controller.adminShipOrder.bind(controller));
 router.patch("/admin-deliver-order", controller.adminDeliverOrder.bind(controller));
 router.post("/read-orders-by-buyer", controller.readOrdersByBuyer.bind(controller));

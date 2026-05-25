@@ -61,19 +61,21 @@ async function readOrderByOrderId(buyer: string, orderId: string): Promise<Order
 export default function OrderDetailPage() {
   const params = useParams<{ id: string }>()
   const orderId = params.id
-  const { isLoggedIn, email } = useAuth()
+  const { isLoggedIn, email, role } = useAuth()
+  const isAdmin = role === "admin"
 
   const [order, setOrder] = useState<OrderRecord | null>(null)
   const [receiver, setReceiver] = useState("")
   const [phone, setPhone] = useState("")
   const [address, setAddress] = useState("")
+  const [cancelPurpose, setCancelPurpose] = useState("")
   const [message, setMessage] = useState<string>("")
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [isSaving, setIsSaving] = useState<boolean>(false)
   const [isCancelling, setIsCancelling] = useState<boolean>(false)
 
   const loadOrder = async () => {
-    if (!email || !orderId || !isLoggedIn) {
+    if (!email || !orderId || !isLoggedIn || isAdmin) {
       setOrder(null)
       return
     }
@@ -102,7 +104,7 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     loadOrder()
-  }, [orderId, email, isLoggedIn])
+  }, [orderId, email, isLoggedIn, isAdmin])
 
   const canEdit = Boolean(order && !["shipped", "delivered", "cancelled", "rejected"].includes(order.status))
   const canCancel = Boolean(order && !["shipped", "delivered", "cancelled", "rejected"].includes(order.status))
@@ -138,6 +140,10 @@ export default function OrderDetailPage() {
     if (!order || !email || !canCancel) {
       return
     }
+    if (!cancelPurpose.trim()) {
+      setMessage("Please provide a cancellation purpose.")
+      return
+    }
 
     setIsCancelling(true)
     setMessage("")
@@ -146,6 +152,7 @@ export default function OrderDetailPage() {
       const updated = await gatewayApi.cancelOrder({
         order_id: order.order_id,
         buyer: email,
+        purpose: cancelPurpose.trim(),
       })
 
       setOrder(updated || { ...order, status: "cancelled" })
@@ -176,6 +183,12 @@ export default function OrderDetailPage() {
             <p className="text-muted-foreground">You need to login before viewing order details.</p>
           </Card>
         ) : null}
+        {isLoggedIn && isAdmin ? (
+          <Card className="p-8 text-center border border-dashed border-border mb-4">
+            <h1 className="text-xl font-semibold text-foreground mb-2">Admin account restriction</h1>
+            <p className="text-muted-foreground">Admin cannot view buyer order details.</p>
+          </Card>
+        ) : null}
 
         {isLoading ? (
           <Card className="p-8 text-center border border-border mb-4">
@@ -183,14 +196,14 @@ export default function OrderDetailPage() {
           </Card>
         ) : null}
 
-        {!isLoading && !order ? (
+        {!isLoading && !isAdmin && !order ? (
           <Card className="p-8 text-center border border-dashed border-border">
             <h1 className="text-xl font-semibold text-foreground mb-2">Order not found</h1>
             <p className="text-muted-foreground">The requested order does not exist.</p>
           </Card>
         ) : null}
 
-        {!isLoading && order ? (
+        {!isLoading && !isAdmin && order ? (
           <div className="space-y-5">
             <Card className="p-5 md:p-6 border border-border bg-gradient-to-r from-primary/5 to-background">
               <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
@@ -242,6 +255,18 @@ export default function OrderDetailPage() {
                       Cancel Order
                     </Button>
                   </div>
+                  {canCancel ? (
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-foreground">Cancellation Purpose</label>
+                      <textarea
+                        value={cancelPurpose}
+                        onChange={(event) => setCancelPurpose(event.target.value)}
+                        rows={3}
+                        placeholder="Explain why you want to cancel this order"
+                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                  ) : null}
                 </div>
               </Card>
 
@@ -279,7 +304,41 @@ export default function OrderDetailPage() {
                         <span className="text-muted-foreground">Bank Number</span>
                         <span className="font-medium text-foreground">{order.bank_number || "N/A"}</span>
                       </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground">Transfer Proof</span>
+                        {order.bank_success_transfer_img ? (
+                          <a
+                            href={order.bank_success_transfer_img}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-medium text-primary hover:underline truncate max-w-[220px]"
+                          >
+                            View Image
+                          </a>
+                        ) : (
+                          <span className="font-medium text-foreground">N/A</span>
+                        )}
+                      </div>
                     </>
+                  ) : null}
+                  {order.reject_or_cancel_purpose ? (
+                    <div className="pt-2 mt-2 border-t border-border">
+                      <span className="text-muted-foreground">Cancel/Reject Purpose</span>
+                      <p className="font-medium text-foreground mt-1">{order.reject_or_cancel_purpose}</p>
+                    </div>
+                  ) : null}
+                  {order.seller_tranfer_back_img ? (
+                    <div className="pt-2 mt-2 border-t border-border flex items-center justify-between gap-3">
+                      <span className="text-muted-foreground">Seller Refund Proof</span>
+                      <a
+                        href={order.seller_tranfer_back_img}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-medium text-primary hover:underline truncate max-w-[220px]"
+                      >
+                        View Image
+                      </a>
+                    </div>
                   ) : null}
                 </div>
               </Card>

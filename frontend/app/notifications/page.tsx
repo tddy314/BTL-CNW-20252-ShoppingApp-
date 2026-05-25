@@ -34,7 +34,9 @@ function formatDate(value: string): string {
 function normalizeNotification(record: NotificationRecord): DisplayNotification {
   const channel = (record.data?.channel || "buyer") as NotificationTab
   const fallbackOrderHref = record.data?.orderId ? `/orders/${record.data.orderId}` : "/orders"
-  const fallbackSellerHref = record.data?.shopId ? `/shop/${record.data.shopId}/orders` : "/my-shops"
+  const fallbackSellerHref = record.data?.shopId
+    ? (record.data?.orderId ? `/shop/${record.data.shopId}/orders/${record.data.orderId}` : `/shop/${record.data.shopId}/orders`)
+    : "/my-shops"
 
   let href = record.data?.targetUrl || fallbackOrderHref
   if (channel === "seller") {
@@ -57,13 +59,19 @@ function normalizeNotification(record: NotificationRecord): DisplayNotification 
 export default function NotificationsPage() {
   const router = useRouter()
   const { role, isLoggedIn, email } = useAuth()
-  const [activeTab, setActiveTab] = useState<NotificationTab>("buyer")
+  const isAdmin = role === "admin"
+  const [activeTab, setActiveTab] = useState<NotificationTab>(isAdmin ? "admin" : "buyer")
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [totalPages, setTotalPages] = useState<number>(1)
   const [totalItems, setTotalItems] = useState<number>(0)
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [errorMessage, setErrorMessage] = useState<string>("")
   const [notifications, setNotifications] = useState<DisplayNotification[]>([])
+
+  useEffect(() => {
+    setActiveTab(isAdmin ? "admin" : "buyer")
+    setCurrentPage(1)
+  }, [isAdmin])
 
   useEffect(() => {
     const loadNotifications = async () => {
@@ -112,7 +120,9 @@ export default function NotificationsPage() {
               <h1 className="text-3xl font-bold text-foreground">Notifications</h1>
             </div>
             <p className="text-muted-foreground">
-              Buyer and seller notifications are separated. Admin notifications are shown in their own tab.
+              {isAdmin
+                ? "Admin account shows only admin notifications."
+                : "Buyer and seller notifications are separated."}
             </p>
           </div>
 
@@ -132,31 +142,33 @@ export default function NotificationsPage() {
           <>
             <Card className="p-4 border border-border mb-5">
               <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={activeTab === "buyer" ? "default" : "outline"}
-                  onClick={() => {
-                    setActiveTab("buyer")
-                    setCurrentPage(1)
-                  }}
-                  className={activeTab === "buyer" ? "bg-primary text-primary-foreground" : "border-border"}
-                >
-                  <ShoppingBag className="w-4 h-4" />
-                  Buyer
-                </Button>
+                {!isAdmin ? (
+                  <>
+                    <Button
+                      variant={activeTab === "buyer" ? "default" : "outline"}
+                      onClick={() => {
+                        setActiveTab("buyer")
+                        setCurrentPage(1)
+                      }}
+                      className={activeTab === "buyer" ? "bg-primary text-primary-foreground" : "border-border"}
+                    >
+                      <ShoppingBag className="w-4 h-4" />
+                      Buyer
+                    </Button>
 
-                <Button
-                  variant={activeTab === "seller" ? "default" : "outline"}
-                  onClick={() => {
-                    setActiveTab("seller")
-                    setCurrentPage(1)
-                  }}
-                  className={activeTab === "seller" ? "bg-primary text-primary-foreground" : "border-border"}
-                >
-                  <BriefcaseBusiness className="w-4 h-4" />
-                  Seller
-                </Button>
-
-                {role === "admin" ? (
+                    <Button
+                      variant={activeTab === "seller" ? "default" : "outline"}
+                      onClick={() => {
+                        setActiveTab("seller")
+                        setCurrentPage(1)
+                      }}
+                      className={activeTab === "seller" ? "bg-primary text-primary-foreground" : "border-border"}
+                    >
+                      <BriefcaseBusiness className="w-4 h-4" />
+                      Seller
+                    </Button>
+                  </>
+                ) : (
                   <Button
                     variant={activeTab === "admin" ? "default" : "outline"}
                     onClick={() => {
@@ -168,7 +180,7 @@ export default function NotificationsPage() {
                     <ShieldCheck className="w-4 h-4" />
                     Admin
                   </Button>
-                ) : null}
+                )}
               </div>
             </Card>
 

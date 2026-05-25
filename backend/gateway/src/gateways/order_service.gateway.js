@@ -61,6 +61,16 @@ export class OrderGateWay {
         }
     }
 
+    async sellerRefundCancelledOrder(req, res) {
+        try {
+            const result = await this.order_service.sellerRefundCancelledOrder(req.body);
+            return res.status(200).json(result);
+        }
+        catch(error) {
+            return res.status(500).json({ message: "Error: " + this.buildErrorMessage(error) });
+        }
+    }
+
     async adminShipOrder(req, res) {
         try {
             const result = await this.order_service.adminShipOrder(req.body);

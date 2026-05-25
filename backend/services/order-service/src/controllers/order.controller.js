@@ -51,6 +51,7 @@ export class OrderController {
             const {
                 order_id,
                 buyer,
+                purpose,
             } = req.body;
 
             if(!order_id || !buyer) {
@@ -60,6 +61,7 @@ export class OrderController {
             const result = await this.orderRepo.cancelOrderByBuyer({
                 order_id,
                 buyer,
+                purpose,
             });
 
             res.status(200).json({ message: "OK", result });
@@ -97,6 +99,8 @@ export class OrderController {
             const {
                 order_id,
                 seller,
+                purpose,
+                seller_tranfer_back_img,
             } = req.body;
 
             if(!order_id || !seller) {
@@ -106,6 +110,33 @@ export class OrderController {
             const result = await this.orderRepo.sellerRejectOrder({
                 order_id,
                 seller,
+                purpose,
+                seller_tranfer_back_img,
+            });
+
+            res.status(200).json({ message: "OK", result });
+        }
+        catch(error) {
+            res.status(400).json({ message: "Error: " + error.message });
+        }
+    }
+
+    async sellerRefundCancelledOrder(req, res) {
+        try {
+            const {
+                order_id,
+                seller,
+                seller_tranfer_back_img,
+            } = req.body;
+
+            if(!order_id || !seller) {
+                throw new Error("order_id and seller are required");
+            }
+
+            const result = await this.orderRepo.sellerRefundCancelledOrder({
+                order_id,
+                seller,
+                seller_tranfer_back_img,
             });
 
             res.status(200).json({ message: "OK", result });
@@ -176,16 +207,18 @@ export class OrderController {
         try {
             const {
                 shop_id,
+                owner,
                 page,
                 limit,
             } = req.body;
 
-            if(!shop_id || !page || !limit) {
-                throw new Error("shop_id, page and limit are required");
+            if(!shop_id || !owner || !page || !limit) {
+                throw new Error("shop_id, owner, page and limit are required");
             }
 
             const result = await this.orderRepo.readOrdersByShop({
                 shop_id,
+                owner,
                 page,
                 limit,
             });

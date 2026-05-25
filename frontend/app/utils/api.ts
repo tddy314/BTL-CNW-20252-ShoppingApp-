@@ -17,6 +17,9 @@ export type OrderRecord = {
     payment: 0 | 1;
     bank: string | null;
     bank_number: string | null;
+    bank_success_transfer_img: string | null;
+    seller_tranfer_back_img: string | null;
+    reject_or_cancel_purpose: string | null;
     status: OrderStatus;
     price: number;
     phone: string;
@@ -123,6 +126,7 @@ export type NewOrderPayload = {
     payment: 0 | 1;
     bank?: string | null;
     bank_number?: string | null;
+    bank_success_transfer_img?: string | null;
     price: number;
     phone: string;
     address: string;
@@ -325,7 +329,7 @@ export class ApiGateway {
         }
     }
 
-    async cancelOrder(payload: { order_id: string; buyer: string; }) {
+    async cancelOrder(payload: { order_id: string; buyer: string; purpose: string; }) {
         try {
             const res = await axios.patch(`${GATEWAY_BASE_URL}/api-gate/order-service/cancel-order`, payload);
             return res.data?.result;
@@ -345,13 +349,32 @@ export class ApiGateway {
         }
     }
 
-    async sellerRejectOrder(payload: { order_id: string; seller: string; }) {
+    async sellerRejectOrder(payload: {
+        order_id: string;
+        seller: string;
+        purpose: string;
+        seller_tranfer_back_img?: string | null;
+    }) {
         try {
             const res = await axios.patch(`${GATEWAY_BASE_URL}/api-gate/order-service/seller-reject-order`, payload);
             return res.data?.result;
         }
         catch(error: any) {
             throw new Error(error?.response?.data?.message || "Failed to reject order");
+        }
+    }
+
+    async sellerRefundCancelledOrder(payload: {
+        order_id: string;
+        seller: string;
+        seller_tranfer_back_img?: string | null;
+    }) {
+        try {
+            const res = await axios.patch(`${GATEWAY_BASE_URL}/api-gate/order-service/seller-refund-cancelled-order`, payload);
+            return res.data?.result;
+        }
+        catch(error: any) {
+            throw new Error(error?.response?.data?.message || "Failed to process cancellation refund");
         }
     }
 
@@ -385,7 +408,7 @@ export class ApiGateway {
         }
     }
 
-    async readOrdersByShop(payload: { shop_id: string; page: number; limit: number; }): Promise<PaginatedOrderResponse> {
+    async readOrdersByShop(payload: { shop_id: string; owner: string; page: number; limit: number; }): Promise<PaginatedOrderResponse> {
         try {
             const res = await axios.post(`${GATEWAY_BASE_URL}/api-gate/order-service/read-orders-by-shop`, payload);
             return res.data?.result;

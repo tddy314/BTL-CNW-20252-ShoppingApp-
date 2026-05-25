@@ -2,17 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, ShoppingCart, Menu, X, LogOut, User, Bell, History, Plus, Store } from 'lucide-react';
+import { Search, ShoppingCart, Menu, X, LogOut, User, Bell, History, Plus, Store, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/auth-context';
 import { CreateShopDialog } from "@/components/create-shop-dialog"
-import { DropdownMenuSeparator } from '@radix-ui/react-dropdown-menu';
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const { isLoggedIn, email, logout } = useAuth();
+  const { isLoggedIn, email, role, logout } = useAuth();
+  const isAdmin = role === 'admin';
   const router = useRouter();
   
   const [showCreateShop, setShowCreateShop] = useState(false)
@@ -72,13 +71,15 @@ export function Header() {
             {isLoggedIn ? (
               <>
                 {/* Cart Button */}
-                <button
-                  onClick={() => handleNavigation('/cart')}
-                  className="hidden sm:flex items-center justify-center p-2 rounded-lg bg-accent text-accent-foreground hover:bg-accent/90 transition-all"
-                  title="Shopping Cart"
-                >
-                  <ShoppingCart className="w-5 h-5" />
-                </button>
+                {!isAdmin && (
+                  <button
+                    onClick={() => handleNavigation('/cart')}
+                    className="hidden sm:flex items-center justify-center p-2 rounded-lg bg-accent text-accent-foreground hover:bg-accent/90 transition-all"
+                    title="Shopping Cart"
+                  >
+                    <ShoppingCart className="w-5 h-5" />
+                  </button>
+                )}
 
                 {/* Notification Icon */}
                 <button
@@ -122,30 +123,49 @@ export function Header() {
                       </button>
 
                       {/* Order History Option */}
-                      <button
-                        onClick={() => {
-                          setIsProfileOpen(false);
-                          handleNavigation('/orders');
-                        }}
-                        className="w-full text-left px-4 py-2 text-foreground hover:bg-muted transition-colors text-sm flex items-center gap-3"
-                      >
-                        <History className="w-4 h-4" />
-                        Order History
-                      </button>
+                      {!isAdmin && (
+                        <button
+                          onClick={() => {
+                            setIsProfileOpen(false);
+                            handleNavigation('/orders');
+                          }}
+                          className="w-full text-left px-4 py-2 text-foreground hover:bg-muted transition-colors text-sm flex items-center gap-3"
+                        >
+                          <History className="w-4 h-4" />
+                          Order History
+                        </button>
+                      )}
+
+                      {isAdmin && (
+                        <button
+                          onClick={() => {
+                            setIsProfileOpen(false);
+                            handleNavigation('/admin/dashboard');
+                          }}
+                          className="w-full text-left px-4 py-2 text-foreground hover:bg-muted transition-colors text-sm flex items-center gap-3"
+                        >
+                          <LayoutDashboard className="w-4 h-4" />
+                          Admin Dashboard
+                        </button>
+                      )}
 
                       <div className="my-1 border-t border-border" />
 
                         {/* NÚT TẠO SHOP MỚI */}
-                        <button 
-                          onClick={() => { setShowCreateShop(true); setIsProfileOpen(false); }}
-                          className="w-full text-left px-4 py-2 hover:bg-muted text-sm flex items-center gap-3 font-medium text-blue-600"
-                        >
-                          <Plus className="w-4 h-4" /> Create Shop
-                        </button>
+                        {!isAdmin && (
+                          <button 
+                            onClick={() => { setShowCreateShop(true); setIsProfileOpen(false); }}
+                            className="w-full text-left px-4 py-2 hover:bg-muted text-sm flex items-center gap-3 font-medium text-blue-600"
+                          >
+                            <Plus className="w-4 h-4" /> Create Shop
+                          </button>
+                        )}
 
-                        <button onClick={() => handleNavigation('/my-shops')} className="w-full text-left px-4 py-2 hover:bg-muted text-sm flex items-center gap-3">
-                          <Store className="w-4 h-4" /> My Shops
-                        </button>
+                        {!isAdmin && (
+                          <button onClick={() => handleNavigation('/my-shops')} className="w-full text-left px-4 py-2 hover:bg-muted text-sm flex items-center gap-3">
+                            <Store className="w-4 h-4" /> My Shops
+                          </button>
+                        )}
 
                       {/* Sign Out Option */}
                       <button
@@ -219,16 +239,18 @@ export function Header() {
                 >
                   Profile
                 </Button>
-                <Button
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    handleNavigation('/cart');
-                  }}
-                  variant="outline"
-                  className="w-full text-foreground border-border hover:bg-muted"
-                >
-                  Shopping Cart
-                </Button>
+                {!isAdmin && (
+                  <Button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      handleNavigation('/cart');
+                    }}
+                    variant="outline"
+                    className="w-full text-foreground border-border hover:bg-muted"
+                  >
+                    Shopping Cart
+                  </Button>
+                )}
                 <Button
                   onClick={() => {
                     setIsMenuOpen(false);
@@ -239,31 +261,49 @@ export function Header() {
                 >
                   Notifications
                 </Button>
-                <Button
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    handleNavigation('/orders');
-                  }}
-                  variant="outline"
-                  className="w-full text-foreground border-border hover:bg-muted"
-                >
-                  Order History
-                </Button>
+                {isAdmin && (
+                  <Button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      handleNavigation('/admin/dashboard');
+                    }}
+                    variant="outline"
+                    className="w-full text-foreground border-border hover:bg-muted"
+                  >
+                    Admin Dashboard
+                  </Button>
+                )}
+                {!isAdmin && (
+                  <Button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      handleNavigation('/orders');
+                    }}
+                    variant="outline"
+                    className="w-full text-foreground border-border hover:bg-muted"
+                  >
+                    Order History
+                  </Button>
+                )}
                 {/* NÚT TẠO SHOP MỚI */}
-                <Button 
-                  onClick={() => { setShowCreateShop(true); setIsProfileOpen(false); }}
-                  variant="outline"
-                  className="w-full text-foreground border-border hover:bg-muted"
-                >
-                  <Plus className="w-4 h-4" /> Create Shop
-                </Button>
+                {!isAdmin && (
+                  <Button 
+                    onClick={() => { setShowCreateShop(true); setIsProfileOpen(false); }}
+                    variant="outline"
+                    className="w-full text-foreground border-border hover:bg-muted"
+                  >
+                    <Plus className="w-4 h-4" /> Create Shop
+                  </Button>
+                )}
 
-                <Button 
-                  onClick={() => handleNavigation('/my-shops')} 
-                  variant="outline"
-                  className="w-full text-foreground border-border hover:bg-muted">
-                  <Store className="w-4 h-4" /> My Shops
-                </Button>
+                {!isAdmin && (
+                  <Button 
+                    onClick={() => handleNavigation('/my-shops')} 
+                    variant="outline"
+                    className="w-full text-foreground border-border hover:bg-muted">
+                    <Store className="w-4 h-4" /> My Shops
+                  </Button>
+                )}
 
                 <Button
                   onClick={() => {

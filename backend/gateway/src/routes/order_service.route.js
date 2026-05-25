@@ -9,6 +9,7 @@ router.patch("/modify-order", orderGate.modifyOrder.bind(orderGate));
 router.patch("/cancel-order", orderGate.cancelOrder.bind(orderGate));
 router.patch("/seller-accept-order", orderGate.sellerAcceptOrder.bind(orderGate));
 router.patch("/seller-reject-order", orderGate.sellerRejectOrder.bind(orderGate));
+router.patch("/seller-refund-cancelled-order", orderGate.sellerRefundCancelledOrder.bind(orderGate));
 router.patch("/admin-ship-order", orderGate.adminShipOrder.bind(orderGate));
 router.patch("/admin-deliver-order", orderGate.adminDeliverOrder.bind(orderGate));
 router.post("/read-orders-by-buyer", orderGate.readOrdersByBuyer.bind(orderGate));

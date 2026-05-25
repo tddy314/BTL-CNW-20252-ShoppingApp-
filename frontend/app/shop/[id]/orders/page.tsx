@@ -48,7 +48,7 @@ function paymentLabel(payment: 0 | 1): string {
 
 export default function ShopOrdersPage({ params }: ShopOrdersPageProps) {
   const { id } = use(params)
-  const { role } = useAuth()
+  const { isLoggedIn, email } = useAuth()
 
   const [orders, setOrders] = useState<OrderRecord[]>([])
   const [currentPage, setCurrentPage] = useState<number>(1)
@@ -57,14 +57,24 @@ export default function ShopOrdersPage({ params }: ShopOrdersPageProps) {
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [errorMessage, setErrorMessage] = useState<string>("")
   const [message, setMessage] = useState<string>("")
+  const [rejectPurposeByOrder, setRejectPurposeByOrder] = useState<Record<string, string>>({})
+  const [rejectTransferImgByOrder, setRejectTransferImgByOrder] = useState<Record<string, string>>({})
 
   const loadOrders = async (page: number) => {
+    if (!email) {
+      setOrders([])
+      setTotalPages(1)
+      setTotalItems(0)
+      return
+    }
+
     setIsLoading(true)
     setErrorMessage("")
 
     try {
       const result = await gatewayApi.readOrdersByShop({
         shop_id: normalizeIdentifierToUuid(id),
+        owner: email,
         page,
         limit: PAGE_SIZE,
       })
@@ -84,7 +94,7 @@ export default function ShopOrdersPage({ params }: ShopOrdersPageProps) {
 
   useEffect(() => {
     loadOrders(currentPage)
-  }, [currentPage, id])
+  }, [currentPage, id, email])
 
   const handleAccept = async (order: OrderRecord) => {
     try {
@@ -100,26 +110,41 @@ export default function ShopOrdersPage({ params }: ShopOrdersPageProps) {
   }
 
   const handleReject = async (order: OrderRecord) => {
+    const purpose = String(rejectPurposeByOrder[order.order_id] || "").trim()
+    if (!purpose) {
+      setMessage("Please provide reject purpose before rejecting the order.")
+      return
+    }
+    const isBankTransfer = Number(order.payment) === 1
+    const transferImg = String(rejectTransferImgByOrder[order.order_id] || "").trim()
+    if (isBankTransfer && !transferImg) {
+      setMessage("Please provide transfer image link for bank transfer order rejection.")
+      return
+    }
     try {
       await gatewayApi.sellerRejectOrder({
         order_id: order.order_id,
         seller: order.seller,
+        purpose,
+        seller_tranfer_back_img: isBankTransfer ? transferImg : null,
       })
       setMessage(`Order ${order.order_id} rejected.`)
+      setRejectPurposeByOrder((prev) => ({ ...prev, [order.order_id]: "" }))
+      setRejectTransferImgByOrder((prev) => ({ ...prev, [order.order_id]: "" }))
       await loadOrders(currentPage)
     } catch (error: any) {
       setMessage(error?.message || "Unable to reject this order")
     }
   }
 
-  if (role !== "seller" && role !== "admin") {
+  if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Header />
         <main className="flex-1 max-w-6xl mx-auto px-4 py-10 w-full">
           <Card className="p-8 border border-dashed border-border text-center">
-            <h1 className="text-2xl font-semibold text-foreground mb-2">Access denied</h1>
-            <p className="text-muted-foreground">Only sellers can manage shop orders.</p>
+            <h1 className="text-2xl font-semibold text-foreground mb-2">Please sign in</h1>
+            <p className="text-muted-foreground">Sign in to view shop orders.</p>
           </Card>
         </main>
         <Footer />
@@ -190,11 +215,61 @@ export default function ShopOrdersPage({ params }: ShopOrdersPageProps) {
                       <p className="text-sm text-muted-foreground">Created: {formatDate(order.created_at)}</p>
                       <p className="text-sm text-foreground">Buyer: {order.buyer}</p>
                       <p className="text-sm text-foreground">Payment: {paymentLabel(order.payment)}</p>
+                      {order.payment === 1 ? (
+                        <p className="text-sm text-foreground">
+                          Transfer Proof:{" "}
+                          {order.bank_success_transfer_img ? (
+                            <a
+                              href={order.bank_success_transfer_img}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-primary hover:underline"
+                            >
+                              View Image
+                            </a>
+                          ) : (
+                            "N/A"
+                          )}
+                        </p>
+                      ) : null}
                       <p className="text-sm text-muted-foreground">Receiver: {order.receiver} - {order.phone}</p>
+                      <Link href={`/shop/${id}/orders/${order.order_id}`} className="inline-block text-sm text-primary hover:underline">
+                        View Details
+                      </Link>
                     </div>
 
                     <div className="xl:text-right space-y-3 min-w-[260px]">
                       <p className="text-lg font-semibold text-primary">{formatCurrency(Number(order.price || 0))}</p>
+                      {order.status === "pending" ? (
+                        <div className="space-y-2">
+                          <textarea
+                            value={rejectPurposeByOrder[order.order_id] || ""}
+                            onChange={(event) =>
+                              setRejectPurposeByOrder((prev) => ({
+                                ...prev,
+                                [order.order_id]: event.target.value,
+                              }))
+                            }
+                            rows={2}
+                            placeholder="Reject purpose (required)"
+                            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                          {Number(order.payment) === 1 ? (
+                            <input
+                              type="text"
+                              value={rejectTransferImgByOrder[order.order_id] || ""}
+                              onChange={(event) =>
+                                setRejectTransferImgByOrder((prev) => ({
+                                  ...prev,
+                                  [order.order_id]: event.target.value,
+                                }))
+                              }
+                              placeholder="Refund transfer image link (required for bank transfer)"
+                              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                            />
+                          ) : null}
+                        </div>
+                      ) : null}
 
                       <div className="flex flex-wrap xl:justify-end gap-2">
                         <Button

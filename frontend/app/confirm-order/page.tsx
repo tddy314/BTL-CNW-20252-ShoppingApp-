@@ -89,7 +89,8 @@ async function readCartItemById(email: string, cartItemId: string): Promise<Cart
 function ConfirmOrderPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { isLoggedIn, email } = useAuth()
+  const { isLoggedIn, email, role } = useAuth()
+  const isAdmin = role === "admin"
 
   const cartItemId = searchParams.get("cartItemId")
   const from = searchParams.get("from")
@@ -114,6 +115,7 @@ function ConfirmOrderPageContent() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash")
   const [bankName, setBankName] = useState("")
   const [bankNumber, setBankNumber] = useState("")
+  const [bankTransferImageLink, setBankTransferImageLink] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
@@ -146,9 +148,9 @@ function ConfirmOrderPageContent() {
     }
 
     const loadCartItem = async () => {
-      if (!email || !cartItemId) {
-        return
-      }
+    if (!email || !cartItemId || isAdmin) {
+      return
+    }
 
       setIsLoading(true)
       setErrorMessage("")
@@ -170,6 +172,7 @@ function ConfirmOrderPageContent() {
     loadCartItem()
   }, [
     email,
+    isAdmin,
     cartItemId,
     isBuyNowFlow,
     buyNowShopId,
@@ -199,14 +202,14 @@ function ConfirmOrderPageContent() {
     }
 
     if (paymentMethod === "bank-transfer") {
-      return Boolean(bankName.trim() && bankNumber.trim())
+      return Boolean(bankName.trim() && bankNumber.trim() && bankTransferImageLink.trim())
     }
 
     return true
-  }, [isLoggedIn, email, cartItem, receiver, phone, address, paymentMethod, bankName, bankNumber])
+  }, [isLoggedIn, email, cartItem, receiver, phone, address, paymentMethod, bankName, bankNumber, bankTransferImageLink])
 
   const handleCreateOrder = async () => {
-    if (!canSubmit || !email || !cartItem) {
+    if (!canSubmit || !email || !cartItem || isAdmin) {
       return
     }
 
@@ -230,6 +233,7 @@ function ConfirmOrderPageContent() {
         payment: paymentMethod === "cash" ? 0 : 1,
         bank: paymentMethod === "bank-transfer" ? bankName.trim() : null,
         bank_number: paymentMethod === "bank-transfer" ? bankNumber.trim() : null,
+        bank_success_transfer_img: paymentMethod === "bank-transfer" ? bankTransferImageLink.trim() : null,
         price: Math.round(totalPrice),
         phone: phone.trim(),
         address: address.trim(),
@@ -277,6 +281,11 @@ function ConfirmOrderPageContent() {
           {!isLoggedIn ? (
             <Card className="border border-dashed border-border p-6 text-center mb-4">
               <p className="text-muted-foreground">Please sign in to create an order.</p>
+            </Card>
+          ) : null}
+          {isLoggedIn && isAdmin ? (
+            <Card className="border border-dashed border-border p-6 text-center mb-4">
+              <p className="text-muted-foreground">Admin cannot use buyer checkout features.</p>
             </Card>
           ) : null}
 
@@ -366,6 +375,14 @@ function ConfirmOrderPageContent() {
                         placeholder="Bank account or transfer reference"
                       />
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-foreground">Transfer Proof Image Link</label>
+                      <Input
+                        value={bankTransferImageLink}
+                        onChange={(event) => setBankTransferImageLink(event.target.value)}
+                        placeholder="https://... (required)"
+                      />
+                    </div>
                   </div>
                 </Card>
               ) : null}
@@ -429,7 +446,7 @@ function ConfirmOrderPageContent() {
 
             <Button
               onClick={handleCreateOrder}
-              disabled={!canSubmit || isSubmitting}
+              disabled={!canSubmit || isSubmitting || isAdmin}
               className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               <ReceiptText className="w-4 h-4" />

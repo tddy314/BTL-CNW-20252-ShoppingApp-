@@ -16,7 +16,8 @@ import type { ProductComment } from '@/lib/store';
 const gatewayApi = new ApiGateway();
 
 export default function ProductDetailPage() {
-  const { email, isLoggedIn } = useAuth();
+  const { email, isLoggedIn, role } = useAuth();
+  const isAdmin = role === 'admin';
   const router = useRouter();
   const params = useParams();
   const rawParamId = params.id;
@@ -103,6 +104,10 @@ export default function ProductDetailPage() {
     if (!product) {
       return;
     }
+    if (isAdmin) {
+      alert('Admin account cannot add items to cart.');
+      return;
+    }
 
     if (!isLoggedIn || !email) {
       alert('Please sign in before adding products to cart.');
@@ -145,6 +150,10 @@ export default function ProductDetailPage() {
 
   const handleBuyNow = () => {
     if (!product) {
+      return;
+    }
+    if (isAdmin) {
+      alert('Admin account cannot create buyer orders.');
       return;
     }
 
@@ -427,6 +436,7 @@ export default function ProductDetailPage() {
             <div className="flex gap-3 pt-4">
               <Button
                 onClick={handleAddToCart}
+                disabled={isAdmin}
                 className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground py-3 flex items-center justify-center gap-2 text-lg font-semibold"
               >
                 <ShoppingCart className="w-5 h-5" />
@@ -434,6 +444,7 @@ export default function ProductDetailPage() {
               </Button>
               <Button
                 onClick={handleBuyNow}
+                disabled={isAdmin}
                 className="flex-1 bg-primary hover:bg-primary/90 text-white py-3 text-lg font-semibold"
               >
                 Buy Now
@@ -458,6 +469,11 @@ export default function ProductDetailPage() {
               <Share2 className="w-4 h-4" />
               Share Product
             </button>
+            {isAdmin && (
+              <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Admin account cannot use customer purchase features (Add to Cart/Buy Now).
+              </p>
+            )}
           </div>
         </div>
 

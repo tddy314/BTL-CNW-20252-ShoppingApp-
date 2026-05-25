@@ -264,9 +264,26 @@ export default function InProgressOrdersPage() {
                   </div>
 
                   <div className="border-t border-gray-200 pt-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                    <div>
+                    <div className="space-y-1">
                       <p className="text-sm text-gray-600 mb-1">Shipping Address</p>
                       <p className="text-gray-900">{order.address}</p>
+                      {order.payment === 1 ? (
+                        <p className="text-sm text-gray-700">
+                          Transfer Proof:{" "}
+                          {order.bank_success_transfer_img ? (
+                            <a
+                              href={order.bank_success_transfer_img}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-blue-600 hover:underline"
+                            >
+                              View Image
+                            </a>
+                          ) : (
+                            "N/A"
+                          )}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 capitalize">

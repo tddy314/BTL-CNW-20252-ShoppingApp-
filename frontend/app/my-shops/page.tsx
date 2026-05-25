@@ -24,7 +24,8 @@ interface ShopRecord {
 }
 
 export default function MyShopsPage() {
-  const { isLoggedIn, email } = useAuth()
+  const { isLoggedIn, email, role } = useAuth()
+  const isAdmin = role === "admin"
   const [showCreateShop, setShowCreateShop] = useState(false)
   const [shops, setShops] = useState<ShopRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -55,6 +56,10 @@ export default function MyShopsPage() {
 
   // Re-fetch shops when create dialog closes (shop might have been created)
   const handleCreateDialogChange = (open: boolean) => {
+    if (isAdmin) {
+      setShowCreateShop(false)
+      return
+    }
     setShowCreateShop(open)
     if (!open) {
       fetchShops()
@@ -81,6 +86,26 @@ export default function MyShopsPage() {
     )
   }
 
+  if (isAdmin) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-12 text-center">
+          <Store className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+          <h1 className="text-2xl font-bold mb-2">Admin account restriction</h1>
+          <p className="text-muted-foreground mb-6">
+            Admin account cannot use shop owner features.
+          </p>
+          <Link href="/admin/in-progress-orders">
+            <Button className="bg-[#ee4d2d] hover:bg-[#d73211] text-white">
+              Go to Order Management
+            </Button>
+          </Link>
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
@@ -99,13 +124,15 @@ export default function MyShopsPage() {
               Manage all your shops in one place
             </p>
           </div>
-          <Button
-            onClick={() => setShowCreateShop(true)}
-            className="bg-[#ee4d2d] hover:bg-[#d73211] text-white gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Create New Shop
-          </Button>
+          {!isAdmin && (
+            <Button
+              onClick={() => setShowCreateShop(true)}
+              className="bg-[#ee4d2d] hover:bg-[#d73211] text-white gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Create New Shop
+            </Button>
+          )}
         </div>
 
         {/* Loading State */}
@@ -189,13 +216,15 @@ export default function MyShopsPage() {
               <p className="text-muted-foreground mb-6">
                 Create your first shop and start selling on ShopHub!
               </p>
-              <Button
-                onClick={() => setShowCreateShop(true)}
-                className="bg-[#ee4d2d] hover:bg-[#d73211] text-white gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Create Your First Shop
-              </Button>
+              {!isAdmin && (
+                <Button
+                  onClick={() => setShowCreateShop(true)}
+                  className="bg-[#ee4d2d] hover:bg-[#d73211] text-white gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Your First Shop
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}

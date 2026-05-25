@@ -71,7 +71,8 @@ function formatDate(value: Date): string {
 
 export default function CartPage() {
   const ITEMS_PER_PAGE = 6
-  const { isLoggedIn, email } = useAuth()
+  const { isLoggedIn, email, role } = useAuth()
+  const isAdmin = role === "admin"
   const [cartItems, setCartItems] = useState<BackendCartItem[]>([])
   const [sortBy, setSortBy] = useState<CartSortOption>("latest")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
@@ -82,7 +83,7 @@ export default function CartPage() {
   const [errorMessage, setErrorMessage] = useState<string>("")
 
   const fetchCart = useCallback(async (page: number) => {
-    if (!email) {
+    if (!email || isAdmin) {
       return
     }
 
@@ -107,10 +108,10 @@ export default function CartPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [email, ITEMS_PER_PAGE, sortBy, categoryFilter])
+  }, [email, isAdmin, ITEMS_PER_PAGE, sortBy, categoryFilter])
 
   useEffect(() => {
-    if (!isLoggedIn || !email) {
+    if (!isLoggedIn || !email || isAdmin) {
       setCartItems([])
       setTotalPages(1)
       setTotalItems(0)
@@ -118,7 +119,7 @@ export default function CartPage() {
     }
 
     fetchCart(currentPage)
-  }, [currentPage, isLoggedIn, email, fetchCart])
+  }, [currentPage, isLoggedIn, email, isAdmin, fetchCart])
 
   const handleRemoveFromCart = async (cartItemId: string) => {
     if (!email) {
@@ -214,6 +215,13 @@ export default function CartPage() {
               <p className="text-muted-foreground">You need to login before viewing cart items.</p>
             </Card>
           ) : null}
+          {isLoggedIn && isAdmin ? (
+            <Card className="border border-dashed border-border p-10 text-center mb-6">
+              <ShoppingCart className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+              <h2 className="text-lg font-semibold text-foreground mb-1">Admin account restriction</h2>
+              <p className="text-muted-foreground">Admin cannot use cart and buyer checkout features.</p>
+            </Card>
+          ) : null}
 
           <Card className="p-4 md:p-5 border border-border mb-6">
             <div className="flex flex-col md:flex-row md:items-center gap-4 md:justify-between">
@@ -277,7 +285,7 @@ export default function CartPage() {
             </Card>
           ) : null}
 
-          {displayItems.length === 0 ? (
+          {displayItems.length === 0 || isAdmin ? (
             <Card className="border border-dashed border-border p-10 text-center">
               <ShoppingCart className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
               <h2 className="text-lg font-semibold text-foreground mb-1">No products in this filter</h2>

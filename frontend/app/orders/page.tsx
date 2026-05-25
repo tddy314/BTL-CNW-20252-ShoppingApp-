@@ -42,7 +42,8 @@ function statusVariant(status: OrderRecord["status"]): "secondary" | "outline" {
 }
 
 export default function OrdersPage() {
-  const { isLoggedIn, email } = useAuth()
+  const { isLoggedIn, email, role } = useAuth()
+  const isAdmin = role === "admin"
   const [orders, setOrders] = useState<OrderRecord[]>([])
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [totalPages, setTotalPages] = useState<number>(1)
@@ -52,7 +53,7 @@ export default function OrdersPage() {
 
   useEffect(() => {
     const loadOrders = async () => {
-      if (!email || !isLoggedIn) {
+      if (!email || !isLoggedIn || isAdmin) {
         setOrders([])
         setTotalPages(1)
         setTotalItems(0)
@@ -83,7 +84,7 @@ export default function OrdersPage() {
     }
 
     loadOrders()
-  }, [isLoggedIn, email, currentPage])
+  }, [isLoggedIn, email, isAdmin, currentPage])
 
   const pageSpend = useMemo(() => {
     return orders.reduce((sum, order) => sum + Number(order.price || 0), 0)
@@ -118,6 +119,13 @@ export default function OrdersPage() {
             <p className="text-muted-foreground">You need to log in before viewing your orders.</p>
           </Card>
         ) : null}
+        {isLoggedIn && isAdmin ? (
+          <Card className="p-10 text-center border border-dashed border-border">
+            <ListOrdered className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+            <h2 className="text-lg font-semibold text-foreground mb-1">Admin account restriction</h2>
+            <p className="text-muted-foreground">Admin cannot view buyer order history.</p>
+          </Card>
+        ) : null}
 
         {errorMessage ? (
           <Card className="border border-destructive/40 bg-destructive/5 p-3 mb-4">
@@ -131,7 +139,7 @@ export default function OrdersPage() {
           </Card>
         ) : null}
 
-        {!isLoading && isLoggedIn && orders.length === 0 ? (
+        {!isLoading && isLoggedIn && !isAdmin && orders.length === 0 ? (
           <Card className="p-10 text-center border border-dashed border-border">
             <ListOrdered className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
             <h2 className="text-lg font-semibold text-foreground mb-1">No orders yet</h2>
@@ -139,7 +147,7 @@ export default function OrdersPage() {
           </Card>
         ) : null}
 
-        {!isLoading && orders.length > 0 ? (
+        {!isLoading && !isAdmin && orders.length > 0 ? (
           <>
             <div className="mb-3 text-sm text-muted-foreground">Showing {orders.length} of {totalItems} orders</div>
 

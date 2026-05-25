@@ -1,0 +1,14 @@
+
+> my-project@0.1.0 dev
+> next dev -p 8000
+
+▲ Next.js 16.2.0 (Turbopack)
+- Local:         http://localhost:8000
+- Network:       http://192.168.1.5:8000
+- Environments: .env
+✓ Ready in 948ms
+
+○ Compiling /admin/reports ...
+ GET /admin/reports 200 in 4.4s (next.js: 4.0s, application-code: 422ms)
+ GET /admin/dashboard 200 in 78ms (next.js: 24ms, application-code: 55ms)
+[?25h

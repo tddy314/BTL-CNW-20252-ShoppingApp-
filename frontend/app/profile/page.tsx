@@ -9,7 +9,7 @@ import { Header } from '@/components/header'
 import { CreateShopDialog } from '@/components/create-shop-dialog'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ArrowLeft, Store, ShoppingBag, TrendingUp, Users, Edit2, Camera } from 'lucide-react'
+import { ArrowLeft, Store, ShoppingBag, TrendingUp, Users, Edit2, Camera, LayoutDashboard } from 'lucide-react'
 import { EditProfileDialog } from '@/components/edit-profile-dialog'
 import { ApiGateway } from '@/app/utils/api'
 
@@ -184,30 +184,33 @@ export default function ProfilePage() {
               <p className="text-slate-600 text-base md:text-lg mb-6">{email || user.email}</p>
 
               {/* Stats Grid */}
-              <div className={`grid grid-cols-1 sm:grid-cols-2 ${isAdmin ? 'xl:grid-cols-4' : 'xl:grid-cols-3'} gap-3`}>
-                <div className={`rounded-2xl p-4 bg-gradient-to-br from-orange-500 to-rose-500 text-white shadow-lg ${!isAdmin ? 'xl:col-span-1' : ''}`}>
-                  <div className="text-2xl font-extrabold">
-                    ${totalSpend.toFixed(2)}
-                  </div>
-                  <p className="text-sm text-orange-50/90">Total Spend</p>
-                </div>
-                <div className={`rounded-2xl p-4 bg-gradient-to-br from-teal-500 to-cyan-500 text-white shadow-lg ${!isAdmin ? 'xl:col-span-1' : ''}`}>
-                  <div className="text-2xl font-extrabold">
-                    {shopsCount}
-                  </div>
-                  <p className="text-sm text-teal-50/90">Shops Owned</p>
-                </div>
-                <div className={`rounded-2xl p-4 bg-gradient-to-br from-blue-500 to-indigo-500 text-white shadow-lg ${!isAdmin ? 'sm:col-span-2 xl:col-span-1' : ''}`}>
-                  <div className="text-2xl font-extrabold">
-                    {purchasesCount}
-                  </div>
-                  <p className="text-sm text-blue-50/90">Purchases</p>
-                </div>
-                {isAdmin && (
+              <div className={`grid grid-cols-1 ${isAdmin ? 'sm:grid-cols-1 xl:grid-cols-1' : 'sm:grid-cols-2 xl:grid-cols-3'} gap-3`}>
+                {isAdmin ? (
                   <div className="rounded-2xl p-4 bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-lg">
                     <div className="text-2xl font-extrabold">Admin</div>
                     <p className="text-sm text-violet-50/90">Account Status</p>
                   </div>
+                ) : (
+                  <>
+                    <div className="rounded-2xl p-4 bg-gradient-to-br from-orange-500 to-rose-500 text-white shadow-lg">
+                      <div className="text-2xl font-extrabold">
+                        ${totalSpend.toFixed(2)}
+                      </div>
+                      <p className="text-sm text-orange-50/90">Total Spend</p>
+                    </div>
+                    <div className="rounded-2xl p-4 bg-gradient-to-br from-teal-500 to-cyan-500 text-white shadow-lg">
+                      <div className="text-2xl font-extrabold">
+                        {shopsCount}
+                      </div>
+                      <p className="text-sm text-teal-50/90">Shops Owned</p>
+                    </div>
+                    <div className="rounded-2xl p-4 bg-gradient-to-br from-blue-500 to-indigo-500 text-white shadow-lg sm:col-span-2 xl:col-span-1">
+                      <div className="text-2xl font-extrabold">
+                        {purchasesCount}
+                      </div>
+                      <p className="text-sm text-blue-50/90">Purchases</p>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -219,42 +222,60 @@ export default function ProfilePage() {
           <h2 className="text-xl font-bold text-slate-900 mb-6">Quick Actions</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Create Shop Button */}
-            <button
-              onClick={() => setShowCreateShop(true)}
-              className="group flex items-center gap-3 p-4 rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 to-rose-50 hover:shadow-md hover:-translate-y-0.5 transition-all"
-            >
-              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-rose-500 rounded-xl flex items-center justify-center shadow-sm">
-                <Store className="w-5 h-5 text-white" />
-              </div>
-              <div className="text-left">
-                <div className="font-semibold text-slate-900">Create Shop</div>
-                <div className="text-sm text-slate-500">Start your own shop</div>
-              </div>
-            </button>
+            {!isAdmin && (
+              <button
+                onClick={() => setShowCreateShop(true)}
+                className="group flex items-center gap-3 p-4 rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 to-rose-50 hover:shadow-md hover:-translate-y-0.5 transition-all"
+              >
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-rose-500 rounded-xl flex items-center justify-center shadow-sm">
+                  <Store className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <div className="font-semibold text-slate-900">Create Shop</div>
+                  <div className="text-sm text-slate-500">Start your own shop</div>
+                </div>
+              </button>
+            )}
 
             {/* My Shops Button */}
-            <Link href="/my-shops" className="group flex items-center gap-3 p-4 rounded-2xl border border-teal-200 bg-gradient-to-br from-teal-50 to-cyan-50 hover:shadow-md hover:-translate-y-0.5 transition-all">
-              <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-sm">
-                <ShoppingBag className="w-5 h-5 text-white" />
-              </div>
-              <div className="text-left">
-                <div className="font-semibold text-slate-900">My Shops</div>
-                <div className="text-sm text-slate-500">{shopsCount} shop{shopsCount !== 1 ? 's' : ''}</div>
-              </div>
-            </Link>
+            {!isAdmin && (
+              <Link href="/my-shops" className="group flex items-center gap-3 p-4 rounded-2xl border border-teal-200 bg-gradient-to-br from-teal-50 to-cyan-50 hover:shadow-md hover:-translate-y-0.5 transition-all">
+                <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-sm">
+                  <ShoppingBag className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <div className="font-semibold text-slate-900">My Shops</div>
+                  <div className="text-sm text-slate-500">{shopsCount} shop{shopsCount !== 1 ? 's' : ''}</div>
+                </div>
+              </Link>
+            )}
 
             {/* Purchase History Button */}
-            <Link href="/orders" className="group flex items-center gap-3 p-4 rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 hover:shadow-md hover:-translate-y-0.5 transition-all">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-sm">
-                <TrendingUp className="w-5 h-5 text-white" />
-              </div>
-              <div className="text-left">
-                <div className="font-semibold text-slate-900">Order History</div>
-                <div className="text-sm text-slate-500">{ordersCount} order{ordersCount !== 1 ? 's' : ''}</div>
-              </div>
-            </Link>
+            {!isAdmin && (
+              <Link href="/orders" className="group flex items-center gap-3 p-4 rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 hover:shadow-md hover:-translate-y-0.5 transition-all">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-sm">
+                  <TrendingUp className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <div className="font-semibold text-slate-900">Order History</div>
+                  <div className="text-sm text-slate-500">{ordersCount} order{ordersCount !== 1 ? 's' : ''}</div>
+                </div>
+              </Link>
+            )}
 
             {/* Admin Orders Button */}
+            {isAdmin && (
+              <Link href="/admin/dashboard" className="group flex items-center gap-3 p-4 rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-sky-50 hover:shadow-md hover:-translate-y-0.5 transition-all">
+                <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-sky-500 rounded-xl flex items-center justify-center shadow-sm">
+                  <LayoutDashboard className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <div className="font-semibold text-slate-900">Dashboard & Metrics</div>
+                  <div className="text-sm text-slate-500">Monitor platform health</div>
+                </div>
+              </Link>
+            )}
+
             {isAdmin && (
               <Link href="/admin/in-progress-orders" className="group flex items-center gap-3 p-4 rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-fuchsia-50 hover:shadow-md hover:-translate-y-0.5 transition-all">
                 <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-xl flex items-center justify-center shadow-sm">

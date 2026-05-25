@@ -66,20 +66,20 @@ function isValidPayment(payment) {
     return payment === 0 || payment === 1;
 }
 
-function assertPaymentRules(payment, bank, bankNumber) {
+function assertPaymentRules(payment, bank, bankNumber, bankSuccessTransferImg) {
     if(!isValidPayment(payment)) {
         throw new Error("Payment must be 0 (cash) or 1 (bank transfer)");
     }
 
     if(payment === 1) {
-        if(!bank || !bankNumber) {
-            throw new Error("Bank and bank_number are required for bank transfer");
+        if(!bank || !bankNumber || !bankSuccessTransferImg) {
+            throw new Error("bank, bank_number and bank_success_transfer_img are required for bank transfer");
         }
         return;
     }
 
-    if(bank || bankNumber) {
-        throw new Error("Bank and bank_number are only allowed when payment is bank transfer");
+    if(bank || bankNumber || bankSuccessTransferImg) {
+        throw new Error("bank, bank_number and bank_success_transfer_img are only allowed when payment is bank transfer");
     }
 }
 
@@ -197,7 +197,7 @@ async function notifySellerNewOrder(order) {
         body: "Your shop has received a new order.",
         data: {
             channel: "seller",
-            targetUrl: `/shop/${order.shop_id}/orders`,
+            targetUrl: `/shop/${order.shop_id}/orders/${order.order_id}`,
             orderId: order.order_id,
             shopId: order.shop_id,
         },
@@ -268,13 +268,16 @@ async function notifySellerOrderCancelledByBuyer(order) {
         toUserId: shopOwner,
         type: "SHOP_ORDER_CANCELLED_BY_BUYER",
         title: `Order ${order.order_id} cancelled by buyer`,
-        body: "A buyer cancelled an order from your shop.",
+        body: order.reject_or_cancel_purpose
+            ? `A buyer cancelled this order. Reason: ${order.reject_or_cancel_purpose}`
+            : "A buyer cancelled an order from your shop.",
         data: {
             channel: "seller",
-            targetUrl: `/shop/${order.shop_id}/orders`,
+            targetUrl: `/shop/${order.shop_id}/orders/${order.order_id}`,
             orderId: order.order_id,
             shopId: order.shop_id,
             status: order.status,
+            purpose: order.reject_or_cancel_purpose || null,
         },
     });
 }
@@ -319,6 +322,48 @@ async function notifyAdminsOrderCancelledByBuyer(order) {
     );
 }
 
+async function notifyBuyerOrderRejectedBySeller(order) {
+    await publishNotification({
+        toUserId: order.buyer,
+        type: "ORDER_REJECTED_BY_SELLER",
+        title: `Order ${order.order_id} rejected by seller`,
+        body: order.reject_or_cancel_purpose
+            ? `Seller rejected your order. Reason: ${order.reject_or_cancel_purpose}`
+            : "Seller rejected your order.",
+        data: {
+            channel: "buyer",
+            targetUrl: `/orders/${order.order_id}`,
+            orderId: order.order_id,
+            shopId: order.shop_id,
+            status: order.status,
+            purpose: order.reject_or_cancel_purpose || null,
+        },
+    });
+}
+
+async function notifyBuyerCancellationConfirmed(order) {
+    const isBankTransfer = Number(order.payment) === 1;
+    await publishNotification({
+        toUserId: order.buyer,
+        type: isBankTransfer ? "ORDER_REFUND_PROOF_FROM_SELLER" : "ORDER_CANCELLATION_CONFIRMED",
+        title: isBankTransfer
+            ? `Refund proof for order ${order.order_id}`
+            : `Order ${order.order_id} cancellation confirmed`,
+        body: isBankTransfer
+            ? "Seller has submitted refund transfer proof for your cancelled order."
+            : "Seller confirmed your cancellation request.",
+        data: {
+            channel: "buyer",
+            targetUrl: `/orders/${order.order_id}`,
+            orderId: order.order_id,
+            shopId: order.shop_id,
+            status: order.status,
+            seller_transfer_back_img: order.seller_tranfer_back_img || null,
+            purpose: order.reject_or_cancel_purpose || null,
+        },
+    });
+}
+
 export class OrderRepository {
     async newOrder({
         product_id,
@@ -328,6 +373,7 @@ export class OrderRepository {
         payment,
         bank,
         bank_number,
+        bank_success_transfer_img,
         price,
         phone,
         address,
@@ -352,7 +398,7 @@ export class OrderRepository {
             throw new Error("Quantity must be a positive number");
         }
 
-        assertPaymentRules(payment, bank, bank_number);
+        assertPaymentRules(payment, bank, bank_number, bank_success_transfer_img);
 
         const resolvedSeller = await resolveSellerShopName(product_id, shop_id, seller);
 
@@ -364,6 +410,7 @@ export class OrderRepository {
             payment,
             bank: payment === 1 ? bank : null,
             bank_number: payment === 1 ? bank_number : null,
+            bank_success_transfer_img: payment === 1 ? bank_success_transfer_img : null,
             status: "pending",
             price,
             phone,
@@ -437,9 +484,14 @@ export class OrderRepository {
     async cancelOrderByBuyer({
         order_id,
         buyer,
+        purpose,
     }) {
         if(!order_id || !buyer) {
             throw new Error("order_id and buyer are required");
+        }
+        const normalizedPurpose = String(purpose || "").trim();
+        if(!normalizedPurpose) {
+            throw new Error("purpose is required when cancelling an order");
         }
 
         const { data: existingOrder, error: findError } = await supabaseUsers
@@ -460,7 +512,10 @@ export class OrderRepository {
 
         const { data, error } = await supabaseAdmin
             .from(ORDER_TABLE)
-            .update({ status: "cancelled" })
+            .update({
+                status: "cancelled",
+                reject_or_cancel_purpose: normalizedPurpose,
+            })
             .eq("order_id", order_id)
             .eq("buyer", buyer)
             .select()
@@ -513,14 +568,20 @@ export class OrderRepository {
     async sellerRejectOrder({
         order_id,
         seller,
+        purpose,
+        seller_tranfer_back_img,
     }) {
         if(!order_id || !seller) {
             throw new Error("order_id and seller are required");
         }
+        const normalizedPurpose = String(purpose || "").trim();
+        if(!normalizedPurpose) {
+            throw new Error("purpose is required when rejecting an order");
+        }
 
         const { data: existingOrder, error: findError } = await supabaseUsers
             .from(ORDER_TABLE)
-            .select("order_id,seller,status")
+            .select("order_id,seller,status,payment")
             .eq("order_id", order_id)
             .single();
 
@@ -534,16 +595,72 @@ export class OrderRepository {
             throw new Error("Seller can only reject orders that are pending");
         }
 
+        const isBankTransfer = Number(existingOrder.payment) === 1;
+        const normalizedTransferBackImg = String(seller_tranfer_back_img || "").trim();
+        if(isBankTransfer && !normalizedTransferBackImg) {
+            throw new Error("seller_tranfer_back_img is required when rejecting bank transfer orders");
+        }
+
         const { data, error } = await supabaseAdmin
             .from(ORDER_TABLE)
-            .update({ status: "rejected" })
+            .update({
+                status: "rejected",
+                reject_or_cancel_purpose: normalizedPurpose,
+                seller_tranfer_back_img: isBankTransfer ? normalizedTransferBackImg : null,
+            })
             .eq("order_id", order_id)
             .eq("seller", seller)
             .select()
             .single();
 
         assertData(data, error);
-        await notifyBuyerStatusChanged(data, "rejected");
+        await notifyBuyerOrderRejectedBySeller(data);
+        return data;
+    }
+
+    async sellerRefundCancelledOrder({
+        order_id,
+        seller,
+        seller_tranfer_back_img,
+    }) {
+        if(!order_id || !seller) {
+            throw new Error("order_id and seller are required");
+        }
+
+        const { data: existingOrder, error: findError } = await supabaseUsers
+            .from(ORDER_TABLE)
+            .select("order_id,seller,status,payment")
+            .eq("order_id", order_id)
+            .single();
+
+        assertData(existingOrder, findError);
+
+        if(existingOrder.seller !== seller) {
+            throw new Error("Only seller can process cancellation confirmation");
+        }
+
+        if(existingOrder.status !== "cancelled") {
+            throw new Error("Seller can only process cancelled orders");
+        }
+
+        const isBankTransfer = Number(existingOrder.payment) === 1;
+        const normalizedTransferBackImg = String(seller_tranfer_back_img || "").trim();
+        if(isBankTransfer && !normalizedTransferBackImg) {
+            throw new Error("seller_tranfer_back_img is required for bank transfer cancellation");
+        }
+
+        const { data, error } = await supabaseAdmin
+            .from(ORDER_TABLE)
+            .update({
+                seller_tranfer_back_img: isBankTransfer ? normalizedTransferBackImg : null,
+            })
+            .eq("order_id", order_id)
+            .eq("seller", seller)
+            .select()
+            .single();
+
+        assertData(data, error);
+        await notifyBuyerCancellationConfirmed(data);
         return data;
     }
 
@@ -665,14 +782,52 @@ export class OrderRepository {
 
     async readOrdersByShop({
         shop_id,
+        owner,
         page,
         limit,
     }) {
         if(!shop_id) {
             throw new Error("shop_id is required");
         }
+        if(!owner) {
+            throw new Error("owner is required");
+        }
 
         const pagination = normalizePagination(page, limit);
+        const normalizedOwner = String(owner).trim().toLowerCase();
+
+        let ownershipVerified = false;
+
+        const { data: directShopData } = await supabaseUsers
+            .from(SHOP_TABLE)
+            .select("id,owner")
+            .eq("id", shop_id)
+            .maybeSingle();
+
+        if(directShopData) {
+            const shopOwner = String(directShopData.owner || "").trim().toLowerCase();
+            ownershipVerified = shopOwner === normalizedOwner;
+        }
+
+        if(!ownershipVerified) {
+            const { data: ownerShops, error: ownerShopsError } = await supabaseUsers
+                .from(SHOP_TABLE)
+                .select("id,owner")
+                .eq("owner", owner);
+
+            if(ownerShopsError) {
+                throw new Error(ownerShopsError.message);
+            }
+
+            ownershipVerified = (ownerShops || []).some((shop) => {
+                const normalizedShopId = normalizeIdentifierToUuid(String(shop.id || ""));
+                return normalizedShopId === String(shop_id).trim();
+            });
+        }
+
+        if(!ownershipVerified) {
+            throw new Error("Shop not found");
+        }
 
         const { data, error, count } = await supabaseUsers
             .from(ORDER_TABLE)

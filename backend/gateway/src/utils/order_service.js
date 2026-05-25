@@ -28,6 +28,11 @@ export class CallOrder {
         return res.data;
     }
 
+    async sellerRefundCancelledOrder(payload) {
+        const res = await axios.patch(`${ORDER_SERVICE_URL}/order-service/seller-refund-cancelled-order`, payload);
+        return res.data;
+    }
+
     async adminShipOrder(payload) {
         const res = await axios.patch(`${ORDER_SERVICE_URL}/order-service/admin-ship-order`, payload);
         return res.data;
