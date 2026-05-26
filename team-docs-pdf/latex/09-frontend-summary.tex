@@ -1,0 +1,43 @@
+\documentclass[12pt]{article}
+\input{common.tex}
+\begin{document}
+\DocumentTitle{Frontend}{Tổng hợp trang và component}
+
+\section{Vai trò}
+Frontend sử dụng Next.js App Router, chạy ở cổng \texttt{8000}. Khi triển khai trong Compose, người dùng truy cập qua Nginx ở cổng \texttt{80}. Frontend tập trung vào hiển thị giao diện và gọi API; logic nghiệp vụ quan trọng được xử lý tại backend.
+
+\section{Các nhóm trang}
+\begin{tabularx}{\linewidth}{>{\bfseries}p{0.23\linewidth} X}
+\toprule
+Nhóm & Trang chính \\
+\midrule
+Khám phá sản phẩm & Trang chủ, \texttt{/products}, chi tiết sản phẩm, trang category, trang shop browse \\
+Tài khoản & \texttt{/login}, \texttt{/register}, quên mật khẩu, mật khẩu mới, xác minh email/OTP, profile \\
+Mua hàng & \texttt{/cart}, \texttt{/confirm-order}, danh sách và chi tiết order \\
+Seller & Danh sách shop, chi tiết shop, đơn hàng của shop và chi tiết xử lý đơn \\
+Admin & Dashboard, danh sách đơn đang xử lý, báo cáo \\
+Thông báo & \texttt{/notifications} với tab buyer/seller/admin tùy vai trò \\
+\bottomrule
+\end{tabularx}
+
+\section{Component chính}
+\begin{itemize}
+  \item Bố cục: \texttt{header}, \texttt{footer}, banner trang chủ.
+  \item Sản phẩm: \texttt{product-card}, \texttt{featured-products}, \texttt{product-comment}, bộ lọc tìm kiếm.
+  \item Quản lý shop và hồ sơ: dialog tạo/sửa shop, sửa profile, đăng sản phẩm.
+  \item Giao diện dùng chung: tập hợp component trong thư mục \texttt{components/ui}.
+\end{itemize}
+
+\section{Cách gọi dữ liệu}
+Lớp \texttt{ApiGateway} tại \texttt{app/utils/api.ts} gom các lời gọi HTTP cho auth, cart, order, inventory, product, review và notification. Khi đi qua Nginx, các URL API dùng đường dẫn tương đối như \texttt{/api-gate/...} và \texttt{/notification-service/...}, nhờ đó cùng hoạt động trên localhost, LAN hoặc đường dẫn public của Cloudflare Tunnel.
+
+\section{Luồng thông báo phía giao diện}
+Trang Notifications lấy định danh người dùng hiện tại, chọn channel tương ứng vai trò và gọi API đọc danh sách. Kết quả gồm nội dung thông báo và \texttt{targetUrl}; khi bấm item, giao diện điều hướng người dùng tới đơn hàng hoặc màn hình nghiệp vụ liên quan.
+
+\section{Lưu ý cho thành viên frontend}
+\begin{itemize}
+  \item Thêm endpoint mới nên bổ sung vào \texttt{ApiGateway} thay vì gọi \texttt{axios} rải rác ở page.
+  \item Với callback sử dụng tham số URL, Next.js yêu cầu đặt component đọc \texttt{useSearchParams} trong \texttt{Suspense} khi build production.
+  \item Khi debug container/public URL, mở app qua Nginx để kiểm tra đúng đường đi thực tế.
+\end{itemize}
+\end{document}

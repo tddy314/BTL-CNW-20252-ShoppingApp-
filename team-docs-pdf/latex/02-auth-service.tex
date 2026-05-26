@@ -1,0 +1,46 @@
+\documentclass[12pt]{article}
+\input{common.tex}
+\begin{document}
+\DocumentTitle{Auth Service}{Định danh và xác thực người dùng}
+
+\section{Trách nhiệm}
+Auth Service chạy tại cổng \texttt{3000}, quản lý đăng ký, đăng nhập, gửi email khôi phục mật khẩu, cập nhật mật khẩu và xác minh liên kết/OTP email. Dịch vụ sử dụng Supabase Auth cho tài khoản và bảng \texttt{profile} cho thông tin ứng dụng.
+
+\section{Các endpoint chính}
+\begin{tabularx}{\linewidth}{p{0.13\linewidth} >{\ttfamily}p{0.35\linewidth} X}
+\toprule
+HTTP & Endpoint & Mục đích \\
+\midrule
+POST & /sign-up & Tạo tài khoản người dùng \\
+POST & /sign-in & Trả session token và thông tin vai trò \\
+POST & /forgot-password & Gửi email khôi phục mật khẩu \\
+POST & /refresh-password & Đặt mật khẩu mới từ access token \\
+POST & /send-email-otp & Gửi mã OTP email \\
+POST & /verify-email-otp & Kiểm tra OTP \\
+POST & /verify-email-link & Xác nhận token từ liên kết email \\
+\bottomrule
+\end{tabularx}
+
+\section{Luồng đăng ký}
+\begin{enumerate}
+  \item Controller nhận \texttt{email}, \texttt{password} và redirect URL tùy chọn.
+  \item Repository chuẩn hóa email: loại khoảng trắng và đổi sang chữ thường.
+  \item Repository kiểm tra tài khoản trùng trong danh sách user của Supabase.
+  \item Supabase Auth tạo user mới kèm metadata \texttt{role = user}.
+  \item Sau khi tạo auth user thành công, service \texttt{upsert} bản ghi \texttt{profile} với email và tên mặc định.
+  \item Frontend yêu cầu người dùng kiểm tra email để xác minh tài khoản.
+\end{enumerate}
+
+\section{Luồng đăng nhập}
+Email được chuẩn hóa rồi gửi tới Supabase Auth cùng mật khẩu. Nếu có session hợp lệ, controller trả về \texttt{access\_token} và payload gồm \texttt{userId}, email, role. Gateway chuyển payload này về frontend để quản lý trạng thái đăng nhập.
+
+\section{Vì sao thiết kế như vậy}
+\begin{itemize}
+  \item Supabase giảm khối lượng phải tự xây dựng về lưu mật khẩu, email verification và recovery.
+  \item Chuẩn hóa email tránh một người tạo nhiều tài khoản chỉ vì khác chữ hoa/thường.
+  \item Tách repository khỏi controller giúp test response của controller mà không cần gọi dịch vụ thật.
+\end{itemize}
+
+\section{Dữ liệu và cấu hình}
+Cần cấu hình \texttt{SUPABASE\_URL}, \texttt{SUPABASE\_ANON\_KEY}, \texttt{SUPABASE\_SERVICE\_ROLE\_KEY} và URL redirect email. Service role key là thông tin nhạy cảm, chỉ lưu phía backend.
+\end{document}

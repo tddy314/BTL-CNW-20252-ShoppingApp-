@@ -1,0 +1,37 @@
+\documentclass[12pt]{article}
+\input{common.tex}
+\begin{document}
+\DocumentTitle{Cart Service}{Giỏ hàng lưu trên Redis}
+
+\section{Trách nhiệm}
+Cart Service chạy tại cổng \texttt{3001}, lưu giỏ hàng theo người dùng và cung cấp thao tác thêm, xóa, đọc kèm lọc, sắp xếp và phân trang.
+
+\section{Mô hình lưu trữ}
+Mỗi email được sử dụng làm một key Redis. Giá trị là danh sách JSON của các item:
+\begin{verbatim}
+{
+  cartItemId: UUID,
+  addedAt: ISO timestamp,
+  shop: {...},
+  productDetail: {...}
+}
+\end{verbatim}
+Khi thêm sản phẩm, service dùng thao tác append vào list. Khi xóa, service đọc list, loại item có \texttt{cartItemId} tương ứng và ghi lại phần còn lại.
+
+\section{Luồng đọc giỏ hàng}
+\begin{enumerate}
+  \item Nhận email, trang, số phần tử, tiêu chí sort và category.
+  \item Đọc toàn bộ danh sách item của email từ Redis.
+  \item Nếu category khác \texttt{all}, giữ các sản phẩm cùng category, không phân biệt hoa thường.
+  \item Sắp xếp theo mới nhất, cũ nhất, giá tăng hoặc giá giảm.
+  \item Chuẩn hóa trang được yêu cầu và trả danh sách phân trang cùng tổng số item.
+\end{enumerate}
+
+\section{Tại sao dùng Redis}
+Giỏ hàng là dữ liệu được đọc và thay đổi thường xuyên trong phiên mua sắm. Redis cho tốc độ truy cập nhanh và cấu trúc list đủ đơn giản cho quy mô bài tập lớn. Giỏ hàng không làm phức tạp các truy vấn Supabase của catalog và order.
+
+\section{Chạy trong container}
+Service đọc host và cổng Redis từ biến môi trường. Trong Docker Compose, host Redis là \texttt{redis}, không phải \texttt{localhost}.
+
+\note{Nếu nhóm muốn giữ giỏ hàng sau khi xóa và tạo lại container, cần gắn volume cho Redis và không dùng \texttt{docker compose down -v}.}
+\end{document}

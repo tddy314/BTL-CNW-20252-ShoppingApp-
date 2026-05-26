@@ -1,0 +1,89 @@
+\documentclass[12pt]{article}
+\input{common.tex}
+\begin{document}
+\DocumentTitle{Notification Service}{Thông báo theo sự kiện và realtime}
+
+\section{Vai trò}
+Notification Service chạy tại cổng \texttt{4000}. Dịch vụ nhận yêu cầu tạo thông báo từ các thao tác nghiệp vụ, lưu lịch sử thông báo theo từng người dùng vào Redis, đồng thời phát sự kiện Socket.IO cho trình duyệt đang kết nối.
+
+\section{Thông báo bắt nguồn từ đâu}
+Trong hệ thống hiện tại, các yêu cầu tạo thông báo quan trọng bắt nguồn từ Order Service, sau khi dữ liệu đơn hàng đã thay đổi thành công:
+\begin{itemize}
+  \item Tạo đơn mới: gửi cho buyer và seller của sản phẩm.
+  \item Seller chấp nhận đơn: gửi cho buyer và các tài khoản admin.
+  \item Buyer hủy đơn: gửi cho seller và admin.
+  \item Seller từ chối đơn hoặc gửi bằng chứng hoàn tiền: gửi cho buyer.
+  \item Admin chuyển sang đang giao hoặc đã giao: gửi cho buyer.
+\end{itemize}
+
+\section{Luồng gửi từ Order Service đến người dùng}
+\subsection{Bước 1: Order Service tạo nội dung}
+Sau khi insert hoặc update order trên Supabase thành công, hàm nghiệp vụ trong Order Service gọi hàm gửi thông báo với các trường:
+\begin{itemize}
+  \item \texttt{toUserId}: email/định danh người sẽ nhận.
+  \item \texttt{type}: loại sự kiện, ví dụ \texttt{ORDER\_CREATED}, \texttt{ORDER\_STATUS\_CHANGED}.
+  \item \texttt{title}, \texttt{body}: nội dung hiển thị.
+  \item \texttt{data}: \texttt{channel}, \texttt{targetUrl}, \texttt{orderId}, \texttt{shopId}, \texttt{status}.
+\end{itemize}
+
+\subsection{Bước 2: Gửi request sang Notification Service}
+Order Service thực hiện HTTP POST tới:
+\begin{verbatim}
+http://notification-service:4000/notification-service/publish
+\end{verbatim}
+Trong chạy local không container, URL có thể là \texttt{http://localhost:4000/notification-service}. Khi chạy Docker, phải dùng tên container \texttt{notification-service}; nếu dùng \texttt{localhost}, Order Service sẽ tự gọi vào container của chính nó và log \texttt{Failed to publish notification: fetch failed}.
+
+\subsection{Bước 3: Notification Service nhận và chuẩn hóa dữ liệu}
+Endpoint \texttt{/publish} nhận body, bắt buộc phải có \texttt{toUserId}. Service bổ sung \texttt{id}, loại mặc định, thời gian tạo và đảm bảo payload có cấu trúc thống nhất trước khi xử lý tiếp.
+
+\subsection{Bước 4: Đưa thông báo qua RabbitMQ}
+Thông báo chuẩn hóa được ghi vào exchange \texttt{notifications} với routing key mặc định \texttt{notification.created}. Queue \texttt{notification\_service\_queue} nhận message. Cách này giúp request từ Order Service kết thúc nhanh sau khi thông báo đã được tiếp nhận, không phải chờ toàn bộ việc lưu và đẩy ra giao diện.
+
+Nếu RabbitMQ tạm thời không dùng được lúc request đến, controller có nhánh dự phòng: lưu thông báo thẳng vào Redis để không làm mất nội dung cần hiển thị.
+
+\subsection{Bước 5: Lấy message từ queue và lưu Redis}
+Luồng xử lý chạy nền trong Notification Service đọc từng message từ queue. Với mỗi message hợp lệ, service lưu JSON vào đầu danh sách Redis:
+\begin{verbatim}
+notifications:{userId}
+\end{verbatim}
+Sau đó danh sách được cắt lại để giữ tối đa số lượng cấu hình bởi \texttt{NOTIFICATION\_MAX\_ITEMS}, mặc định là 50. Vì vậy hệ thống chỉ giữ các thông báo gần đây nhất cho từng người dùng.
+
+\subsection{Bước 6: Đẩy realtime về frontend}
+Sau khi lưu Redis thành công, Notification Service phát sự kiện socket tên \texttt{notification} tới đúng \texttt{toUserId}. Người dùng đang mở trình duyệt có thể nhận thông tin ngay mà không cần tải lại trang.
+
+\subsection{Bước 7: Frontend đọc danh sách lịch sử}
+Trang thông báo hoặc dashboard gọi:
+\begin{verbatim}
+GET /notification-service/read-notifications
+    ?userId=<nguoi-nhan>&channel=<buyer|seller|admin>&page=1&limit=10
+\end{verbatim}
+Service đọc list Redis, chuyển JSON về object, lọc theo \texttt{data.channel}, tính phân trang và trả về frontend. Khi người dùng bấm thông báo, frontend dùng \texttt{data.targetUrl} để mở đúng trang đơn hàng hoặc trang quản lý shop.
+
+\section{Ví dụ luồng khi seller chấp nhận đơn}
+\begin{enumerate}
+  \item Seller bấm chấp nhận đơn tại giao diện quản lý cửa hàng.
+  \item Request đi qua Nginx, Gateway tới Order Service.
+  \item Order Service kiểm tra seller và trạng thái \texttt{pending}, sau đó cập nhật đơn thành \texttt{processing}.
+  \item Order Service gửi một thông báo cho buyer rằng đơn đã được chấp nhận.
+  \item Order Service tìm các admin và gửi thông báo rằng có đơn sẵn sàng cho quy trình giao hàng.
+  \item Notification Service lưu từng thông báo theo key Redis của từng người nhận và phát socket nếu người đó online.
+  \item Buyer hoặc admin tải trang Notifications sẽ đọc được thông báo tương ứng theo channel.
+\end{enumerate}
+
+\section{Tại sao thiết kế như vậy}
+\begin{itemize}
+  \item Order Service chỉ quyết định khi nào và gửi nội dung gì; Notification Service chịu trách nhiệm lưu và phát thông báo. Hai phần nghiệp vụ không bị trộn lẫn.
+  \item RabbitMQ làm vùng đệm cho thao tác thông báo, phù hợp khi một hành động phải gửi cho nhiều người nhận.
+  \item Redis phù hợp cho danh sách ngắn, đọc nhanh và lọc đơn giản theo vai trò.
+  \item Socket.IO mang lại cập nhật realtime; API đọc Redis vẫn bảo đảm người dùng xem được lịch sử khi mở trang sau đó.
+\end{itemize}
+
+\section{Kiểm tra khi không thấy thông báo}
+\begin{enumerate}
+  \item Kiểm tra log Order Service: không được còn lỗi \texttt{Failed to publish notification}.
+  \item Kiểm tra biến \texttt{NOTIFICATION\_SERVICE\_URL} trong Compose trỏ đúng service nội bộ.
+  \item Kiểm tra log Notification Service có kết nối Redis và đã kết nối RabbitMQ.
+  \item Gọi endpoint đọc với đúng \texttt{userId} và đúng \texttt{channel}; nếu channel khác, thông báo tồn tại nhưng bị lọc khỏi tab đang xem.
+  \item Không xóa volume Redis nếu cần giữ thông báo cũ sau khi khởi động lại stack.
+\end{enumerate}
+\end{document}

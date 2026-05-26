@@ -1,0 +1,53 @@
+\usepackage[a4paper,margin=2.2cm]{geometry}
+\usepackage{fontspec}
+\usepackage[vietnamese]{babel}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+
+\setmainfont{Arial}
+\setsansfont{Arial}
+\setmonofont{Consolas}
+\definecolor{primary}{HTML}{0F4C5C}
+\definecolor{accent}{HTML}{E36414}
+\definecolor{lightbox}{HTML}{F2F6F7}
+\hypersetup{colorlinks=true,linkcolor=primary,urlcolor=primary}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\setlist[itemize]{leftmargin=1.4em,itemsep=2pt,topsep=2pt}
+\setlist[enumerate]{leftmargin=1.6em,itemsep=3pt,topsep=2pt}
+\renewcommand{\arraystretch}{1.2}
+\titleformat{\section}{\Large\bfseries\color{primary}}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\large\bfseries\color{primary}}{\thesubsection.}{0.5em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\textcolor{primary}{BTL-CNW Shopping Platform}}
+\rhead{\textcolor{primary}{Tài liệu kỹ thuật}}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\newcommand{\DocumentTitle}[2]{
+  \begin{titlepage}
+    \centering
+    \vspace*{3cm}
+    {\Huge\bfseries\color{primary} #1\par}
+    \vspace{0.8cm}
+    {\Large #2\par}
+    \vfill
+    {\large Nhóm bài tập lớn Công nghệ Web\par}
+    \vspace{0.3cm}
+    {\large Cập nhật: 26/05/2026\par}
+  \end{titlepage}
+}
+
+\newcommand{\note}[1]{
+  \vspace{4pt}
+  \colorbox{lightbox}{\parbox{\dimexpr\linewidth-2\fboxsep}{#1}}
+  \vspace{4pt}
+}

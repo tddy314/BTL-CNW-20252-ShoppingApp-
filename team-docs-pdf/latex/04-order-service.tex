@@ -1,0 +1,63 @@
+\documentclass[12pt]{article}
+\input{common.tex}
+\begin{document}
+\DocumentTitle{Order Service}{Vòng đời đơn hàng và sự kiện nghiệp vụ}
+
+\section{Trách nhiệm}
+Order Service chạy tại cổng \texttt{3002}, là trung tâm của nghiệp vụ mua bán: tạo đơn, chỉnh sửa/hủy đơn, seller xử lý đơn, admin giao hàng và gửi yêu cầu tạo thông báo sau các chuyển trạng thái quan trọng.
+
+\section{Trạng thái đơn hàng}
+\begin{center}
+\fbox{\texttt{pending}} $\longrightarrow$ \fbox{\texttt{processing}} $\longrightarrow$ \fbox{\texttt{shipped}} $\longrightarrow$ \fbox{\texttt{delivered}}
+
+\vspace{10pt}
+\fbox{\texttt{pending}} $\longrightarrow$ \fbox{\texttt{rejected}}
+\qquad
+\fbox{\texttt{pending / processing}} $\longrightarrow$ \fbox{\texttt{cancelled}}
+\end{center}
+
+\section{API nghiệp vụ}
+\begin{tabularx}{\linewidth}{>{\ttfamily}p{0.43\linewidth} X}
+\toprule
+Endpoint & Ý nghĩa \\
+\midrule
+/new-order & Tạo đơn mới, thông báo buyer và seller \\
+/modify-order & Buyer sửa thông tin nhận hàng \\
+/cancel-order & Buyer hủy đơn và nhập lý do \\
+/seller-accept-order & Seller chấp nhận đơn đang chờ \\
+/seller-reject-order & Seller từ chối đơn đang chờ \\
+/seller-refund-cancelled-order & Seller xác nhận/đính kèm chứng từ hoàn tiền \\
+/admin-ship-order & Admin chuyển đơn sang đang giao \\
+/admin-deliver-order & Admin xác nhận giao thành công \\
+/read-orders-by-buyer & Lịch sử đơn của người mua \\
+/read-orders-by-shop & Danh sách đơn của cửa hàng \\
+/read-all-orders & Danh sách đơn phục vụ admin \\
+\bottomrule
+\end{tabularx}
+
+\section{Luồng tạo đơn}
+\begin{enumerate}
+  \item Nhận product, buyer, shop, seller, số lượng, địa chỉ nhận và thông tin thanh toán.
+  \item Kiểm tra payment chỉ là tiền mặt hoặc chuyển khoản; nếu chuyển khoản phải có dữ liệu ngân hàng và ảnh chuyển tiền.
+  \item Xác định tên shop/seller phù hợp từ dữ liệu product và shop.
+  \item Ghi bản ghi order vào Supabase với trạng thái \texttt{pending}.
+  \item Gửi yêu cầu tạo thông báo cho buyer và chủ shop qua Notification Service.
+\end{enumerate}
+
+\section{Luồng xử lý theo vai trò}
+\textbf{Buyer:} chỉ được chỉnh sửa hoặc hủy đơn khi chưa giao/hoàn tất/từ chối. Khi hủy phải cung cấp lý do.
+
+\textbf{Seller:} chỉ được accept hoặc reject đơn có trạng thái \texttt{pending}. Nếu đơn chuyển khoản bị reject, seller phải cung cấp bằng chứng hoàn tiền theo rule hiện có.
+
+\textbf{Admin:} chỉ chuyển \texttt{processing} sang \texttt{shipped} và \texttt{shipped} sang \texttt{delivered}. Khi giao thành công, service tăng \texttt{sold\_count} của sản phẩm.
+
+\section{Kết nối Notification Service}
+Sau khi cập nhật dữ liệu thành công, Order Service gọi HTTP:
+\begin{verbatim}
+POST http://notification-service:4000/notification-service/publish
+\end{verbatim}
+Payload gồm người nhận, loại thông báo, tiêu đề, nội dung và đường dẫn màn hình đích. Trong Compose, biến \texttt{NOTIFICATION\_SERVICE\_URL} phải trỏ tới DNS container này; nếu để \texttt{localhost}, request chỉ quay về chính container Order và thất bại.
+
+\section{Lý do thiết kế}
+Order Service tự bảo vệ quy tắc chuyển trạng thái thay vì giao việc đó cho frontend. Như vậy một request trực tiếp cũng không thể chuyển đơn sang trạng thái sai. Thông báo chỉ được gửi sau khi thao tác dữ liệu thành công, bảo đảm thông báo phản ánh thay đổi đã thực sự xảy ra.
+\end{document}

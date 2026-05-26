@@ -1,0 +1,29 @@
+\documentclass[12pt]{article}
+\input{common.tex}
+\begin{document}
+\DocumentTitle{Review Service}{Đánh giá sản phẩm và cửa hàng}
+
+\section{Trách nhiệm}
+Review Service chạy tại cổng \texttt{3005}, nhận bình luận/điểm đánh giá của người mua và tính thống kê điểm cho sản phẩm hoặc cửa hàng.
+
+\section{API chính}
+\begin{tabularx}{\linewidth}{>{\ttfamily}p{0.44\linewidth} X}
+\toprule
+Endpoint & Mục đích \\
+\midrule
+/add-review & Thêm bình luận và rating cho sản phẩm \\
+/get-reviews-by-product & Danh sách đánh giá có phân trang \\
+/get-product-rating & Điểm trung bình và số review sản phẩm \\
+/get-shop-rating & Điểm trung bình và số review theo shop \\
+\bottomrule
+\end{tabularx}
+
+\section{Luồng đánh giá}
+Tại trang chi tiết sản phẩm, người dùng nhập điểm và nội dung nhận xét. Frontend gửi dữ liệu qua Gateway đến Review Service. Dữ liệu mới được ghi vào Supabase, sau đó trang sản phẩm có thể tải lại danh sách bình luận và thống kê rating cập nhật.
+
+\section{Vì sao tách khỏi Product Service}
+Sản phẩm là dữ liệu catalog do seller quản lý; review là dữ liệu tương tác do người dùng phát sinh và có nhu cầu tổng hợp riêng. Tách dịch vụ tránh làm Product Service chứa cả CRUD sản phẩm lẫn logic tính điểm, đồng thời thuận lợi mở rộng kiểm duyệt review sau này.
+
+\section{Điểm cần kiểm soát}
+Rating cần nằm trong miền giá trị cho phép, review phải gắn đúng product, và nếu mở rộng dự án nên chỉ cho phép người đã mua hàng đánh giá. Đây là các rule bảo vệ độ tin cậy của dữ liệu.
+\end{document}

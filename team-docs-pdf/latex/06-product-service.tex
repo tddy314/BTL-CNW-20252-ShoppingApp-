@@ -1,0 +1,38 @@
+\documentclass[12pt]{article}
+\input{common.tex}
+\begin{document}
+\DocumentTitle{Product Service}{Danh mục và tìm kiếm sản phẩm}
+
+\section{Trách nhiệm}
+Product Service chạy tại cổng \texttt{3004}, phụ trách tạo, cập nhật, xóa, lấy chi tiết và tìm kiếm sản phẩm. Dữ liệu được lưu trên Supabase.
+
+\section{API chính}
+\begin{tabularx}{\linewidth}{>{\ttfamily}p{0.39\linewidth} X}
+\toprule
+Endpoint & Mục đích \\
+\midrule
+/add-product & Seller đăng sản phẩm vào shop \\
+/update-product & Seller sửa ảnh, giá, mô tả, biến thể \\
+/delete-product & Xóa sản phẩm thuộc quyền owner \\
+/get-product-by-id & Hiển thị trang chi tiết \\
+/search-products & Lọc/tìm kiếm và phân trang danh sách \\
+\bottomrule
+\end{tabularx}
+
+\section{Dữ liệu sản phẩm}
+Một sản phẩm chứa mã sản phẩm, mã shop, owner, ảnh, category, giá, mô tả, tên, tag và các danh sách màu/kích cỡ/chất liệu. Trường \texttt{sold\_count} được dùng để thể hiện số lượng đã bán.
+
+\section{Luồng seller đăng sản phẩm}
+\begin{enumerate}
+  \item Seller chọn shop và nhập dữ liệu sản phẩm ở frontend.
+  \item Gateway chuyển request sang Product Service.
+  \item Service kiểm tra các trường bắt buộc và ghi sản phẩm với owner/shop phù hợp.
+  \item Frontend gọi tìm kiếm hoặc chi tiết để hiển thị sản phẩm mới.
+\end{enumerate}
+
+\section{Quan hệ với Order Service}
+Khi một đơn được admin xác nhận \texttt{delivered}, Order Service tăng \texttt{sold\_count} cho product tương ứng. Việc chỉ tăng khi giao thành công tránh thống kê bán hàng bị phóng đại bởi đơn đã hủy hoặc bị từ chối.
+
+\section{Lý do thiết kế}
+Catalog có nhu cầu đọc/tìm kiếm nhiều, trong khi order có luật trạng thái phức tạp. Tách hai domain giúp truy vấn sản phẩm và logic giao dịch phát triển độc lập, đồng thời frontend có một endpoint tìm kiếm thống nhất.
+\end{document}

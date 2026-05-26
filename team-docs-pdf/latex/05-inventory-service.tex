@@ -1,0 +1,34 @@
+\documentclass[12pt]{article}
+\input{common.tex}
+\begin{document}
+\DocumentTitle{Inventory Service}{Quản lý cửa hàng và hồ sơ}
+
+\section{Trách nhiệm}
+Inventory Service chạy tại cổng \texttt{3003}, quản lý thông tin shop của seller và hồ sơ hiển thị của người dùng. Domain này được tách khỏi product và order để quyền sở hữu cửa hàng được quản lý tập trung.
+
+\section{Chức năng chính}
+\begin{tabularx}{\linewidth}{>{\ttfamily}p{0.42\linewidth} X}
+\toprule
+Endpoint & Chức năng \\
+\midrule
+/create-shop & Tạo cửa hàng mới cho owner \\
+/delete-shop & Xóa cửa hàng sau khi xác thực owner \\
+/update-shop-bank-info & Đổi thông tin nhận tiền \\
+/update-shop-info & Đổi tên và ảnh cửa hàng \\
+/get-shops-by-owner & Danh sách cửa hàng của seller \\
+/get-shop-by-id & Chi tiết cửa hàng \\
+/create-profile & Tạo hồ sơ người dùng \\
+/get-profile & Đọc hồ sơ \\
+/update-profile & Sửa tên hoặc ảnh hồ sơ \\
+\bottomrule
+\end{tabularx}
+
+\section{Luồng shop}
+Seller đăng nhập, frontend gửi yêu cầu tạo shop qua Gateway. Inventory Service lưu shop gắn với email owner. Khi cập nhật hoặc xóa, owner trong request phải tương ứng với owner dữ liệu; điều này ngăn người dùng chỉnh sửa cửa hàng của người khác.
+
+\section{Quan hệ với dịch vụ khác}
+Product Service gắn sản phẩm với \texttt{shop\_id} và \texttt{shop\_owner}. Order Service dùng thông tin shop để hiển thị seller và kiểm tra đơn thuộc gian hàng nào. Vì vậy tính chính xác của ownership tại Inventory Service ảnh hưởng trực tiếp đến quản lý sản phẩm và đơn hàng.
+
+\section{Lý do thiết kế}
+Profile và shop đều là dữ liệu định danh/hiển thị của người bán, có vòng đời khác với sản phẩm và đơn hàng. Tách service giúp logic order không bị trộn với việc sửa ảnh hoặc thông tin ngân hàng cửa hàng.
+\end{document}

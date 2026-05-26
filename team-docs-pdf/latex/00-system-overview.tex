@@ -1,0 +1,104 @@
+\documentclass[12pt]{article}
+\input{common.tex}
+\begin{document}
+\DocumentTitle{Tổng quan hệ thống}{Kiến trúc, use case và luồng hoạt động}
+\tableofcontents
+\newpage
+
+\section{Mục tiêu và phạm vi}
+Hệ thống là một ứng dụng thương mại điện tử dạng sàn nhỏ phục vụ ba vai trò: người mua, chủ cửa hàng và quản trị viên. Người dùng có thể đăng ký tài khoản, tìm kiếm sản phẩm, đặt hàng và theo dõi thông báo. Chủ cửa hàng quản lý gian hàng, sản phẩm và xử lý đơn. Quản trị viên theo dõi, vận chuyển và hoàn tất đơn hàng.
+
+Ứng dụng được tách thành frontend, API Gateway và các dịch vụ nghiệp vụ nhỏ. Mục tiêu của cách chia này trong phạm vi bài tập lớn là giúp các thành viên phát triển độc lập theo chức năng, dễ trình bày kiến trúc và dễ chạy lại bằng Docker Compose.
+
+\section{Sơ đồ kiến trúc tổng quan}
+\begin{center}
+\fbox{\parbox{0.54\linewidth}{\centering\textbf{Trình duyệt người dùng}\\Frontend Next.js}}
+
+$\downarrow$ HTTP / WebSocket
+
+\fbox{\parbox{0.54\linewidth}{\centering\textbf{Nginx Reverse Proxy}\\Điểm truy cập công khai: cổng 80}}
+
+$\downarrow$ \quad\quad $\downarrow$
+
+\begin{tabular}{>{\centering\arraybackslash}p{0.42\linewidth} >{\centering\arraybackslash}p{0.42\linewidth}}
+\fbox{\parbox{0.92\linewidth}{\centering\textbf{API Gateway}\\Định tuyến API nghiệp vụ}} &
+\fbox{\parbox{0.92\linewidth}{\centering\textbf{Notification Service}\\API đọc thông báo + Socket.IO}}
+\end{tabular}
+
+$\downarrow$
+
+\fbox{\parbox{0.88\linewidth}{\centering
+Auth \quad Cart \quad Order \quad Inventory \quad Product \quad Review}}
+
+\vspace{8pt}
+\begin{tabular}{>{\centering\arraybackslash}p{0.28\linewidth} >{\centering\arraybackslash}p{0.28\linewidth} >{\centering\arraybackslash}p{0.28\linewidth}}
+\fbox{\parbox{0.9\linewidth}{\centering Supabase\\Auth + dữ liệu}} &
+\fbox{\parbox{0.9\linewidth}{\centering Redis\\Cart + thông báo}} &
+\fbox{\parbox{0.9\linewidth}{\centering RabbitMQ\\Hàng đợi thông báo}}
+\end{tabular}
+\end{center}
+
+\section{Các use case chính}
+\subsection{Người mua}
+\begin{itemize}
+  \item Đăng ký, xác minh email, đăng nhập, quên và đặt lại mật khẩu.
+  \item Xem danh sách, tìm kiếm, lọc và xem chi tiết sản phẩm.
+  \item Thêm sản phẩm vào giỏ, lọc hoặc sắp xếp giỏ hàng, xóa sản phẩm.
+  \item Đặt đơn hàng, sửa thông tin nhận hàng hoặc hủy đơn trước khi vận chuyển.
+  \item Xem lịch sử đơn hàng, đánh giá sản phẩm và đọc thông báo.
+\end{itemize}
+
+\subsection{Chủ cửa hàng}
+\begin{itemize}
+  \item Tạo và chỉnh sửa cửa hàng, cập nhật thông tin tài khoản nhận tiền.
+  \item Đăng, cập nhật, xóa sản phẩm.
+  \item Xem đơn thuộc cửa hàng; chấp nhận, từ chối hoặc xác nhận hoàn tiền cho đơn bị hủy.
+\end{itemize}
+
+\subsection{Quản trị viên}
+\begin{itemize}
+  \item Xem các đơn đang xử lý và báo cáo tổng quan.
+  \item Chuyển trạng thái đơn từ đang xử lý sang đang giao, sau đó hoàn tất.
+  \item Nhận thông báo khi có đơn cần can thiệp.
+\end{itemize}
+
+\section{Luồng đặt hàng tổng quát}
+\begin{enumerate}
+  \item Frontend gửi yêu cầu đặt đơn qua Nginx tới API Gateway.
+  \item Gateway chuyển yêu cầu đến Order Service.
+  \item Order Service kiểm tra dữ liệu người nhận, hình thức thanh toán và lưu đơn vào Supabase với trạng thái \texttt{pending}.
+  \item Khi lưu thành công, Order Service gửi yêu cầu tạo thông báo cho người mua và chủ cửa hàng.
+  \item Chủ cửa hàng chấp nhận đơn; trạng thái chuyển thành \texttt{processing}, người mua và quản trị viên nhận thông báo.
+  \item Quản trị viên chuyển đơn sang \texttt{shipped}, rồi \texttt{delivered}; khi giao thành công số lượng đã bán của sản phẩm được tăng.
+\end{enumerate}
+
+\section{Vòng đời đơn hàng}
+\begin{center}
+\fbox{\texttt{pending}} $\longrightarrow$ \fbox{\texttt{processing}} $\longrightarrow$ \fbox{\texttt{shipped}} $\longrightarrow$ \fbox{\texttt{delivered}}
+
+\vspace{10pt}
+\fbox{\texttt{pending}} $\longrightarrow$ \fbox{\texttt{rejected}}
+\qquad
+\fbox{\texttt{pending / processing}} $\longrightarrow$ \fbox{\texttt{cancelled}}
+\end{center}
+
+\section{Dữ liệu và hạ tầng}
+\begin{tabularx}{\linewidth}{>{\bfseries}p{0.2\linewidth} X X}
+\toprule
+Thành phần & Dữ liệu / trách nhiệm & Lý do sử dụng \\
+\midrule
+Supabase & Tài khoản, hồ sơ, cửa hàng, sản phẩm, đơn hàng, đánh giá & Dịch vụ quản lý sẵn auth và cơ sở dữ liệu, phù hợp thời gian BTL \\
+Redis & Danh sách giỏ hàng và tối đa các thông báo gần nhất theo người dùng & Đọc/ghi nhanh, cấu trúc danh sách đơn giản \\
+RabbitMQ & Chuyển thông báo từ API nhận yêu cầu sang khâu lưu và đẩy realtime & Tránh gắn xử lý thông báo trực tiếp vào luồng đặt hàng \\
+Nginx & Chuyển tiếp request public tới frontend, gateway và notification & Chỉ cần public một cổng và một địa chỉ \\
+\bottomrule
+\end{tabularx}
+
+\section{Chạy bằng container}
+Docker Compose khởi chạy frontend, Nginx, gateway, các service nghiệp vụ, Redis và RabbitMQ. Trong mạng Docker, các service gọi nhau bằng tên dịch vụ, ví dụ \texttt{order-service} gọi \texttt{notification-service:4000}, không gọi \texttt{localhost}.
+
+\note{\textbf{Lưu ý dữ liệu:} thông báo và giỏ hàng nằm trong Redis. Nếu xóa container kèm volume bằng tùy chọn \texttt{-v}, dữ liệu Redis đã lưu sẽ mất.}
+
+\section{Tài liệu liên quan}
+Mỗi dịch vụ có một PDF riêng giải thích API, luồng xử lý, dữ liệu và quyết định thiết kế. Tài liệu frontend chỉ giới thiệu trang, component và cách gọi API để các thành viên nhanh chóng định vị mã nguồn.
+\end{document}
