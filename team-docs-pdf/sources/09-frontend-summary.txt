@@ -1,0 +1,26 @@
+FRONTEND SUMMARY (DON GIAN)
+
+1. Vai tro
+Frontend Next.js cung cap UI cho buyer/seller/admin.
+
+2. Cac trang chinh
+- Home, product list, product detail
+- Cart, confirm order, orders list/detail
+- Login/register/forgot-password/verify callback
+- Shop pages + shop orders
+- Notifications page
+- Admin dashboard/in-progress orders
+
+3. Cac nhom component
+- Layout: header, footer, banners
+- Product: card, comment, search/filter, publish dialog
+- Shop/Profile dialogs
+- UI primitives: components/ui
+
+4. Pattern goi API
+- ApiGateway class trong app/utils/api.ts
+- Frontend goi gateway + notification endpoint
+
+5. Ly do thiet ke
+- Tap trung logic API de giam duplicate code.
+- App Router giup to chuc route theo user journey de theo doi.

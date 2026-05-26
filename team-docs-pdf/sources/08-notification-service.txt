@@ -1,0 +1,63 @@
+NOTIFICATION SERVICE - THIET KE CHI TIET
+
+1. Vai tro
+Notification Service nhan su kien tu cac service nghiep vu (chu yeu tu Order Service),
+luu lich su thong bao theo tung nguoi dung va day thong bao realtime ra giao dien.
+
+2. Luong chi tiet tu dau den dau
+
+Buoc 1: Hanh dong nghiep vu xay ra trong Order Service
+- Vi du: tao don, seller accept/reject, admin ship/deliver.
+- Sau khi cap nhat don thanh cong, Order Service tao noi dung thong bao
+  (toUserId, type, title, body, data).
+
+Buoc 2: Order Service gui HTTP request sang Notification Service
+- Endpoint nhan: POST /notification-service/publish
+- Trong Docker, dia chi noi bo dung:
+  http://notification-service:4000/notification-service/publish
+- Payload chua thong tin:
+  + toUserId: nguoi nhan thong bao
+  + type: loai su kien (ORDER_CREATED, ORDER_STATUS_CHANGED,...)
+  + title, body
+  + data: channel, targetUrl, orderId, shopId, status,...
+
+Buoc 3: Notification Service tiep nhan va dua vao luong xu ly thong bao
+- Service kiem tra/normalize du lieu vao.
+- Neu cau hinh hang doi bat (RabbitMQ), thong bao duoc day vao exchange/queue.
+- Neu tai thoi diem khoi dong broker chua san sang, service retry ket noi dinh ky.
+
+Buoc 4: Notification Service luu thong bao vao Redis
+- Moi user co key rieng: notifications:{userId}
+- Thong bao moi duoc dua len dau danh sach.
+- Service trim so luong item de gioi han kich thuoc du lieu luu.
+
+Buoc 5: Notification Service day realtime den client dang online
+- Sau khi xu ly va luu xong, service emit socket event den dung user.
+- Neu user dang mo app, giao dien co the cap nhat thong bao gan nhu tuc thi.
+
+Buoc 6: Frontend doc lich su thong bao qua API
+- Frontend goi endpoint:
+  GET /notification-service/read-notifications
+- Truyen query: userId, channel, page, limit.
+- Service doc Redis, loc theo channel (buyer/seller/admin), phan trang va tra ket qua.
+
+Buoc 7: Frontend dieu huong theo targetUrl
+- Moi thong bao chua data.targetUrl.
+- Khi user bam vao thong bao, frontend dieu huong den man hinh lien quan
+  (vi du /orders/{orderId} hoac /shop/{shopId}/orders/{orderId}).
+
+3. Vi sao thiet ke nhu vay
+- Tach luong thong bao khoi luong dat don giup order response nhanh hon.
+- Redis phu hop cho timeline thong bao: append nhanh, doc nhanh, de phan trang.
+- Day realtime qua socket giup UX tot hon so voi chi polling.
+- Luu thong bao theo userId + channel giup frontend loc dung theo vai tro.
+
+4. Diem can dung khi chay Docker
+- Order Service phai set dung:
+  NOTIFICATION_SERVICE_URL=http://notification-service:4000/notification-service
+- Neu de localhost trong container, order se log loi "Failed to publish notification: fetch failed".
+
+5. Kiem tra nhanh khi nghi ng? loi
+- Kiem tra log order-service co con loi publish khong.
+- Kiem tra log notification-service co thong bao da xu ly/chay consumer khong.
+- Kiem tra endpoint read-notifications tra du lieu voi userId/channel dung khong.

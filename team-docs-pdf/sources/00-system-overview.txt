@@ -1,0 +1,57 @@
+TONG QUAN HE THONG BTL-CNW
+Ngay cap nhat: 26-05-2026
+
+1. Muc tieu tai lieu
+Tai lieu nay giup thanh vien nhom hieu nhanh kien truc, cac use case chinh, luong xu ly tong the va ly do thiet ke he thong.
+
+2. Kien truc tong quan
+Frontend (Next.js) -> Nginx Reverse Proxy -> API Gateway -> cac service backend.
+Cac service chinh:
+- Auth Service
+- Cart Service
+- Order Service
+- Inventory Service
+- Product Service
+- Review Service
+- Notification Service
+
+Ha tang dung chung:
+- Supabase: du lieu chinh + auth
+- Redis: gio hang + danh sach thong bao
+- RabbitMQ: hang doi su kien thong bao
+
+3. Use case chinh
+- Dang ky / dang nhap / khoi phuc mat khau
+- Tim kiem, xem chi tiet san pham
+- Them/xoa/xem gio hang
+- Dat don, sua don, huy don
+- Seller chap nhan/tu choi don
+- Admin ship/deliver don
+- Danh gia san pham
+- Nhan thong bao theo vai tro buyer/seller/admin
+
+4. Luong tong the (Order + Notification)
+Nguoi dung thao tac tren Frontend -> Gateway -> Order Service.
+Order Service ghi du lieu vao Supabase va goi publish thong bao.
+Notification Service day vao RabbitMQ, consumer doc message, luu Redis va phat realtime qua socket.
+Frontend trang Notifications doc API va hien thi lich su thong bao.
+
+5. Nguyen tac thiet ke
+- Tach microservice theo domain de de phat trien song song.
+- Gateway lam diem vao duy nhat de frontend on dinh API.
+- Redis cho thao tac nhanh, phu hop du lieu tam thoi.
+- RabbitMQ giup tach bat dong bo, tranh block luong dat don.
+- Docker Compose tao moi truong run dong nhat cho toan nhom.
+
+6. Rui ro va gioi han
+- Neu xoa volume Redis thi mat thong bao/gio hang cu.
+- Quick tunnel Cloudflare chi dung tam thoi.
+- Test tu dong da co, nhung chua bao phu 100% edge case.
+
+7. Thu tu doc de de nhip
+(1) Tai lieu tong quan nay
+(2) Gateway
+(3) Auth, Product, Order
+(4) Notification
+(5) Cac service con lai
+(6) Frontend summary

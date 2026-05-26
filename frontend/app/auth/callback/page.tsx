@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircle2, CircleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { ApiGateway } from '@/app/utils/api';
 
 type VerifyState = 'loading' | 'success' | 'error';
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const api = useMemo(() => new ApiGateway(), []);
@@ -75,5 +75,27 @@ export default function AuthCallbackPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function AuthCallbackFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-orange-50 px-4">
+      <div className="w-full max-w-md bg-white rounded-lg shadow-xl p-8 text-center">
+        <div className="flex justify-center mb-5">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+        <h1 className="text-2xl font-bold text-foreground mb-2">Email Verification</h1>
+        <p className="text-muted-foreground mb-6">Verifying your email...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={<AuthCallbackFallback />}>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }

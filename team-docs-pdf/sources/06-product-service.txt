@@ -1,0 +1,16 @@
+PRODUCT SERVICE - THIET KE CHI TIET
+
+1. Vai tro
+Quan ly catalog san pham (CRUD) va tim kiem co phan trang.
+
+2. Luong chinh
+- Add/Update/Delete product theo owner.
+- Get product by id.
+- Search products theo query/filter/category/price/page/limit.
+
+3. Ly do thiet ke
+- Tach rieng domain product de mo rong tim kiem de dang.
+- Search tap trung mot endpoint de frontend tai su dung tot.
+
+4. Luu y
+- sold_count duoc order-service cap nhat khi deliver thanh cong.

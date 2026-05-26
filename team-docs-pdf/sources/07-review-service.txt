@@ -1,0 +1,16 @@
+REVIEW SERVICE - THIET KE CHI TIET
+
+1. Vai tro
+Luu danh gia va tinh toan diem trung binh cho product/shop.
+
+2. Luong chinh
+- Add review (rating + comment).
+- Read reviews by product co phan trang.
+- Tinh average rating + total reviews.
+
+3. Ly do thiet ke
+- Logic danh gia nen tach rieng de de bao tri.
+- Tong hop diem o service review giup product service gon.
+
+4. Luu y
+- Nen rang buoc rating hop le de giu chat luong du lieu.

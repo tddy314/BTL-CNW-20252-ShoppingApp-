@@ -1,0 +1,19 @@
+AUTH SERVICE - THIET KE CHI TIET
+
+1. Vai tro
+Quan ly dang ky, dang nhap, quen mat khau, xac minh email va OTP.
+
+2. Luong chinh
+- Sign up: chuan hoa email -> tao user auth -> upsert profile.
+- Sign in: xac thuc thong tin -> tra token + payload user.
+- Forgot password: gui email reset voi redirect URL.
+- Verify link/OTP: xac minh token va kich hoat luong tiep theo.
+
+3. Ly do thiet ke
+- Chuan hoa email tranh trung lap do khac hoa-thuong / khoang trang.
+- upsert profile giu dong bo auth user va profile app.
+- Tach controller/repository de de test va bao tri.
+
+4. Luu y
+- Redirect URL phai cau hinh dung theo moi truong.
+- Kiem tra trung email truoc sign-up co the race trong tai cao, chap nhan duoc voi pham vi BTL.

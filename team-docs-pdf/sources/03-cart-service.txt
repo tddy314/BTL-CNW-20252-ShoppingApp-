@@ -1,0 +1,17 @@
+CART SERVICE - THIET KE CHI TIET
+
+1. Vai tro
+Quan ly gio hang: them, xoa, doc; ho tro filter/sort/pagination.
+
+2. Luong chinh
+- Them item: append vao Redis list theo key user.
+- Xoa item: doc list, loc cartItemId, ghi lai list moi.
+- Doc cart: loc category, sap xep gia/thoi gian, phan trang.
+
+3. Ly do thiet ke
+- Redis phu hop du lieu session-like, thao tac nhanh va don gian.
+- Xu ly filter/sort o backend giup frontend gon hon.
+
+4. Luu y
+- Du lieu Redis phu thuoc volume persistence.
+- Key theo email de de implement; co the nang cap sang userId UUID.

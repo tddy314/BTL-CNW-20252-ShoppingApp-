@@ -1,0 +1,25 @@
+ORDER SERVICE - THIET KE CHI TIET
+
+1. Vai tro
+Quan ly vong doi don hang va phat thong bao nghiep vu.
+
+2. State machine
+pending -> processing -> shipped -> delivered
+pending -> rejected
+pending/processing -> cancelled
+
+3. Luong chinh
+- Tao don: validate payment/field -> insert Supabase -> notify buyer/seller.
+- Buyer sua/huy: chi buyer duoc phep, rang buoc theo trang thai.
+- Seller accept/reject: kiem tra quyen + state.
+- Admin ship/deliver: rang buoc transition ro rang.
+- Deliver thanh cong: cap nhat sold_count san pham.
+
+4. Ly do thiet ke
+- State transition minh bach tranh sai lech du lieu.
+- Rule theo vai tro giu logic nghiep vu ro rang.
+- Notification tach bat dong bo de khong lam cham luong dat don.
+
+5. Luu y cau hinh
+- NOTIFICATION_SERVICE_URL trong Docker phai dung DNS noi bo:
+  http://notification-service:4000/notification-service

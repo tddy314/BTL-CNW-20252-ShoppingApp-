@@ -1,0 +1,17 @@
+INVENTORY SERVICE - THIET KE CHI TIET
+
+1. Vai tro
+Quan ly shop va profile nguoi dung.
+
+2. Luong chinh
+- Tao shop theo owner.
+- Cap nhat thong tin shop + thong tin ngan hang.
+- Xoa shop co kiem tra owner.
+- Tao/doc/cap nhat profile.
+
+3. Ly do thiet ke
+- Tach domain seller-profile/shop khoi order de tranh coupling.
+- Tap trung kiem tra quyen owner mot noi cho nhat quan.
+
+4. Luu y
+- Kiem tra ownership rat quan trong vi nhieu service phu thuoc shop_id.

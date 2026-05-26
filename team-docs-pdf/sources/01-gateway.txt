@@ -1,0 +1,20 @@
+GATEWAY SERVICE - THIET KE CHI TIET
+
+1. Vai tro
+Gateway la diem vao duy nhat cho frontend, nhan request va route den tung service domain.
+
+2. Luong xu ly
+- Frontend goi /api-gate/<service>/<action>
+- Gateway validate input co ban
+- Gateway goi service noi bo thong qua URL env
+- Gateway tra ve response theo mot format thong nhat
+
+3. Vi sao thiet ke nhu vay
+- Frontend khong phu thuoc truc tiep vao dia chi tung service.
+- Doi URL noi bo khong anh huong giao dien.
+- Co diem tap trung de them auth middleware, log, rate-limit.
+
+4. Luu y van hanh
+- Khong hardcode localhost trong utility client khi chay container.
+- CORS origin can dung voi URL public frontend.
+- Log gateway la noi de debug tich hop nhanh nhat.
