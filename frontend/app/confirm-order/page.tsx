@@ -35,6 +35,11 @@ type CartApiItem = {
   }
 }
 
+type ShopBankInfo = {
+  shop_bank_account?: string | null
+  shop_bank_account_number?: string | null
+}
+
 const gatewayApi = new ApiGateway()
 
 function formatCurrency(value: number): string {
@@ -86,6 +91,41 @@ async function readCartItemById(email: string, cartItemId: string): Promise<Cart
   return null
 }
 
+async function readShopBankInfo(cartItem: CartApiItem): Promise<ShopBankInfo | null> {
+  const rawShopId = cartItem.shop?.shopId
+  const productId = cartItem.productDetail?.productId
+
+  if (!rawShopId) {
+    return null
+  }
+
+  const numericShopId = Number(rawShopId)
+  if (Number.isFinite(numericShopId)) {
+    return await gatewayApi.getShopById({ shop_id: numericShopId })
+  }
+
+  if (!productId) {
+    return null
+  }
+
+  const product = await gatewayApi.getProductById({ product_id: productId })
+  const shopOwner = product?.shop_owner
+
+  if (!shopOwner) {
+    return null
+  }
+
+  const shopsPage = await gatewayApi.getShopsByOwner({
+    owner: shopOwner,
+    page: 1,
+    limit: 100,
+  })
+  const shops = (shopsPage?.items || []) as Array<ShopBankInfo & { id?: number | string }>
+  const normalizedTargetShopId = normalizeIdentifierToUuid(rawShopId)
+
+  return shops.find((shop) => normalizeIdentifierToUuid(String(shop.id || "")) === normalizedTargetShopId) || null
+}
+
 function ConfirmOrderPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -116,6 +156,9 @@ function ConfirmOrderPageContent() {
   const [bankName, setBankName] = useState("")
   const [bankNumber, setBankNumber] = useState("")
   const [bankTransferImageLink, setBankTransferImageLink] = useState("")
+  const [shopBankInfo, setShopBankInfo] = useState<ShopBankInfo | null>(null)
+  const [isShopBankLoading, setIsShopBankLoading] = useState(false)
+  const [shopBankError, setShopBankError] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
@@ -187,6 +230,37 @@ function ConfirmOrderPageContent() {
     buyNowSize,
     buyNowMaterial,
   ])
+
+  useEffect(() => {
+    const loadShopBankInfo = async () => {
+      if (!cartItem?.shop?.shopId || !cartItem?.productDetail?.productId) {
+        setShopBankInfo(null)
+        setShopBankError("")
+        return
+      }
+
+      setIsShopBankLoading(true)
+      setShopBankError("")
+
+      try {
+        const result = await readShopBankInfo(cartItem)
+        setShopBankInfo(result)
+
+        if (!result) {
+          setShopBankError("Shop bank information is not available.")
+        }
+      } catch (error: any) {
+        setShopBankInfo(null)
+        setShopBankError(error?.message || "Unable to load shop bank information.")
+      } finally {
+        setIsShopBankLoading(false)
+      }
+    }
+
+    if (paymentMethod === "bank-transfer") {
+      loadShopBankInfo()
+    }
+  }, [cartItem, paymentMethod])
 
   const quantity = Number(cartItem?.productDetail?.quantity || 1)
   const unitPrice = Number(cartItem?.productDetail?.price || 0)
@@ -359,6 +433,32 @@ function ConfirmOrderPageContent() {
                 <Card className="p-4 border border-border bg-muted/30">
                   <h3 className="text-sm font-semibold text-foreground mb-2">Bank Transfer Information</h3>
                   <div className="space-y-3">
+                    <div className="rounded-md border border-border bg-background p-3">
+                      <p className="text-sm font-medium text-foreground mb-2">Shop Bank Information</p>
+                      {isShopBankLoading ? (
+                        <p className="text-sm text-muted-foreground">Loading shop bank information...</p>
+                      ) : shopBankInfo ? (
+                        <div className="space-y-2 text-sm">
+                          <div>
+                            <p className="text-muted-foreground">Bank</p>
+                            <p className="font-medium text-foreground">
+                              {shopBankInfo.shop_bank_account || "Not set"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Account Number</p>
+                            <p className="font-medium text-foreground">
+                              {shopBankInfo.shop_bank_account_number || "Not set"}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          {shopBankError || "Shop bank information is not available."}
+                        </p>
+                      )}
+                    </div>
+
                     <div>
                       <label className="block text-sm font-medium mb-2 text-foreground">Bank</label>
                       <Input
